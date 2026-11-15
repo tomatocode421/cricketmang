@@ -32,7 +32,7 @@ export function CommandPalette({ onClose }) {
       { group: 'Actions', label: 'New match', icon: Plus, hint: `${MOD}N`, run: openNewMatch },
       { group: 'Actions', label: 'Share team sheet', icon: Share2, run: () => go('match', { share: true }) },
       { group: 'Actions', label: 'Add a tip or improvement', icon: Plus, run: () => go('tips', { add: true }) },
-      { group: 'Actions', label: 'Backup & Restore', icon: HardDriveDownload, run: openBackup },
+      { group: 'Actions', label: 'Sync & Backup', icon: HardDriveDownload, run: openBackup },
       ...[...data.matches]
         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
         .map((m) => ({
@@ -239,7 +239,7 @@ export function MobileNav({ onSearch }) {
               ))}
               <button onClick={() => (setMore(false), openBackup())} role="menuitem">
                 <HardDriveDownload size={20} strokeWidth={1.9} />
-                <span>Backup &amp; Restore</span>
+                <span>Sync &amp; Backup</span>
               </button>
             </div>
           </div>

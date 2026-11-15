@@ -52,13 +52,27 @@ Once it's added to your Home Screen, it opens full screen like a normal app and 
 2. On your iPhone, open the address the workflow shows (for example `https://<your-username>.github.io/cricketmang/`) in **Safari**.
 3. Tap **Share**, then **Add to Home Screen**, then **Add**.
 
-### Your data on iPhone and Mac
+### Keeping your Mac and iPhone in step
 
-Each device keeps its own copy of your information, stored on the device itself. There's no account and no cloud.
+Every device saves its own copy, so the app works offline. To share changes between your devices, turn on **Sync** under **Sync & Backup**.
 
-To move information from one device to the other, use **Backup & Restore**:
-1. Save a backup on one device. On iPhone this opens the share sheet, so you can AirDrop it to your Mac or save it to Files.
-2. Restore that backup on the other device.
+Sync stores your data in a **private** GitHub repository that only you can see. Changes made on one device appear on the others within seconds of them opening the app.
+
+**One-time setup:**
+1. Create a new **private** repository named `cricket-data`.
+2. Create a fine-grained access key at <https://github.com/settings/personal-access-tokens/new>:
+   - **Repository access:** Only select repositories → `cricket-data`
+   - **Permissions:** Contents → Read and write
+3. In the app on each device, open **Sync & Backup**, paste the key and tap **Turn on sync**.
+
+**How it handles changes:**
+- If both devices changed things, they're combined match by match and tip by tip, rather than one copy replacing the other.
+- If the same match was edited on both devices, the most recent edit wins.
+- Deleted items stay deleted.
+
+**Privacy:** the access key stays on each device. It isn't included in backups or in the synced data, and the app refuses to sync to a public repository.
+
+You can still move data with **Backup & Restore**: save a backup on one device and restore it on another.
 
 ## Install on your Mac
 
@@ -116,6 +130,12 @@ Run the same kind of test at iPhone size, with touch:
 
 ```bash
 npm run e2e:mobile
+```
+
+Run two devices syncing through a stand-in for GitHub:
+
+```bash
+npm run e2e:sync
 ```
 
 Your data is stored in `~/Library/Application Support/Cricket Team Manager/cricket-data.json`. A copy of the previous version is kept alongside it as `cricket-data.previous.json`.

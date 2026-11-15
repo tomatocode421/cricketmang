@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { initialData, normaliseData, uid } from './data/model.js';
+import { mergeData, sameData, stamp } from './data/merge.js';
+import { deviceName, getSyncConfig, readRemote, setSyncConfig, writeRemote } from './lib/sync.js';
 
 const STORAGE_KEY = 'cricket-team-manager-data';
 const StoreContext = createContext(null);
@@ -50,14 +52,106 @@ export function StoreProvider({ children }) {
   const timer = useRef(null);
   const loaded = useRef(false);
 
+  // ---------- Sync between devices ----------
+  const [sync, setSync] = useState(() => ({ enabled: !!getSyncConfig(), state: 'idle', lastSync: null, error: '' }));
+  const syncBusy = useRef(false);
+  const syncAgain = useRef(false);
+  const syncTimer = useRef(null);
+  const forcePush = useRef(false);
+  const syncRef = useRef(() => {});
+  const scheduleSync = useCallback((delay = 2000) => {
+    if (!getSyncConfig()) return;
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => syncRef.current(), delay);
+  }, []);
+
+  // Merge another device's copy into the newest local copy (so nothing typed meanwhile is lost).
+  const applyRemote = useCallback(async (remoteData) => {
+    const merged = mergeData(latest.current, remoteData);
+    if (!sameData(merged, latest.current)) {
+      latest.current = merged;
+      setData(merged);
+      await storage.save({ ...merged, savedAt: Date.now() });
+    }
+    return merged;
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    const cfg = getSyncConfig();
+    if (!cfg || !latest.current) return;
+    if (syncBusy.current) {
+      syncAgain.current = true;
+      return;
+    }
+    syncBusy.current = true;
+    setSync((x) => ({ ...x, enabled: true, state: 'syncing', error: '' }));
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const remote = await readRemote(cfg);
+        const remoteData = remote.data ? normaliseData(remote.data) : null;
+        const merged = forcePush.current || !remoteData ? latest.current : await applyRemote(remoteData);
+        if (!remoteData || forcePush.current || !sameData(merged, remoteData)) {
+          try {
+            await writeRemote(cfg, { ...merged, savedAt: Date.now() }, remote.sha, deviceName());
+          } catch (err) {
+            if (err.conflict && attempt < 2) continue;
+            throw err;
+          }
+        }
+        forcePush.current = false;
+        break;
+      }
+      setSync((x) => ({ ...x, state: 'synced', lastSync: Date.now(), error: '' }));
+    } catch (err) {
+      setSync((x) => ({ ...x, state: err.offline ? 'offline' : 'error', error: err.message || 'Sync failed' }));
+    } finally {
+      syncBusy.current = false;
+      if (syncAgain.current) {
+        syncAgain.current = false;
+        scheduleSync(800);
+      }
+    }
+  }, [applyRemote, scheduleSync]);
+  syncRef.current = syncNow;
+
+  const connectSync = useCallback(
+    async (cfg) => {
+      setSyncConfig(cfg);
+      setSync({ enabled: true, state: 'idle', lastSync: null, error: '' });
+      await syncNow();
+    },
+    [syncNow]
+  );
+  const disconnectSync = useCallback(() => {
+    setSyncConfig(null);
+    clearTimeout(syncTimer.current);
+    setSync({ enabled: false, state: 'idle', lastSync: null, error: '' });
+  }, []);
+
+  // Check for changes from other devices: on start, every 45 s, and whenever the app comes back into view.
+  useEffect(() => {
+    const onShow = () => document.visibilityState !== 'hidden' && scheduleSync(300);
+    const tick = setInterval(() => document.visibilityState !== 'hidden' && scheduleSync(0), 45000);
+    document.addEventListener('visibilitychange', onShow);
+    window.addEventListener('focus', onShow);
+    window.addEventListener('online', onShow);
+    return () => {
+      clearInterval(tick);
+      document.removeEventListener('visibilitychange', onShow);
+      window.removeEventListener('focus', onShow);
+      window.removeEventListener('online', onShow);
+    };
+  }, [scheduleSync]);
+
   useEffect(() => {
     storage.load().then((raw) => {
       const d = normaliseData(raw);
       latest.current = d;
       setData(d);
       loaded.current = true;
+      scheduleSync(300);
     });
-  }, []);
+  }, [scheduleSync]);
 
   const flush = useCallback(async () => {
     clearTimeout(timer.current);
@@ -68,12 +162,16 @@ export function StoreProvider({ children }) {
       const toSave = { ...latest.current, savedAt: Date.now() };
       await storage.save(toSave);
       setSaveState(dirty.current ? 'unsaved' : 'saved');
+      if (getSyncConfig()) {
+        setSync((x) => (x.state === 'syncing' ? x : { ...x, state: 'pending' }));
+        scheduleSync(2500);
+      }
     } catch (err) {
       console.error(err);
       dirty.current = true;
       setSaveState('error');
     }
-  }, []);
+  }, [scheduleSync]);
 
   useEffect(() => {
     const onUnload = () => {
@@ -89,7 +187,7 @@ export function StoreProvider({ children }) {
       setData((prev) => {
         const draft = structuredClone(prev);
         const result = recipe(draft);
-        const next = result || draft;
+        const next = stamp(prev, result || draft);
         latest.current = next;
         return next;
       });
@@ -107,6 +205,8 @@ export function StoreProvider({ children }) {
       latest.current = d;
       setData(d);
       setWorkingMatchId(null);
+      // A restored backup replaces the synced copy too, rather than being merged with it.
+      if (getSyncConfig()) forcePush.current = true;
       dirty.current = true;
       flush();
     },
@@ -136,8 +236,12 @@ export function StoreProvider({ children }) {
       setWorkingMatchId,
       updateMatch,
       updateActive: (recipe) => match && updateMatch(match.id, recipe),
+      sync,
+      syncNow,
+      connectSync,
+      disconnectSync,
     };
-  }, [data, update, replaceAll, flush, saveState, workingMatchId]);
+  }, [data, update, replaceAll, flush, saveState, workingMatchId, sync, syncNow, connectSync, disconnectSync]);
 
   if (!value) {
     return (

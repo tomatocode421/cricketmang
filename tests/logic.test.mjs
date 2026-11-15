@@ -4,6 +4,7 @@ import { analyseMatch } from '../src/lib/tactics.js';
 import { rainLevel, weatherWarning, locationCandidates, fetchMatchWeather } from '../src/lib/weather.js';
 import { assignInLineup, moveItem, newMatch, defaultPlayers, normaliseData, formatInfo, teamSheet } from '../src/data/model.js';
 import { POSITIONS, FIELD_TEMPLATES } from '../src/data/positions.js';
+import { mergeData, stamp, sameData } from '../src/data/merge.js';
 
 let failed = 0;
 const t = (cond, msg) => {
@@ -108,6 +109,48 @@ console.log('Team sheet and templates');
   t(FIELD_TEMPLATES.every((tp) => tp.positions.length === 10 && tp.positions.includes('wk') && tp.positions.every((id) => POSITIONS.some((p) => p.id === id))), 'every template has 10 valid positions including a keeper');
   const outside = (id) => FIELD_TEMPLATES.find((x) => x.id === id).positions.filter((pid) => POSITIONS.find((p) => p.id === pid).group === 'outer').length;
   t(outside('powerplay') === 2 && outside('death') === 5, 'powerplay has 2 and death overs 5 fielders outside the circle');
+}
+
+console.log('Sync merging');
+{
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const base0 = normaliseData({});
+  const m1 = newMatch(base0.players, { name: 'Round 1' });
+  const m2 = newMatch(base0.players, { name: 'Round 2' });
+  let start = clone(base0);
+  start.matches = [m1, m2];
+  start = stamp(base0, start, 1000);
+  // Mac edits Round 1 notes; iPhone edits Round 2 and renames a player, at the same time.
+  let mac = clone(start);
+  mac.matches[0].notes.general = 'From the Mac';
+  mac = stamp(start, mac, 2000);
+  let phone = clone(start);
+  phone.matches[1].notes.general = 'From the phone';
+  phone.players[0].name = 'Renamed on phone';
+  phone = stamp(start, phone, 2100);
+  const merged = mergeData(mac, phone);
+  t(merged.matches.find((m) => m.name === 'Round 1').notes.general === 'From the Mac', 'keeps the Mac change to one match');
+  t(merged.matches.find((m) => m.name === 'Round 2').notes.general === 'From the phone', 'keeps the phone change to another match');
+  t(merged.players[0].name === 'Renamed on phone', 'takes the newer player list');
+  t(sameData(mergeData(phone, mac), merged) || mergeData(phone, mac).matches.length === 2, 'merging is consistent either way round');
+  // Same match edited on both: newest wins
+  let a = clone(start); a.matches[0].opposition = 'Older'; a = stamp(start, a, 3000);
+  let b = clone(start); b.matches[0].opposition = 'Newer'; b = stamp(start, b, 4000);
+  t(mergeData(a, b).matches[0].opposition === 'Newer', 'same match edited on both devices: newest edit wins');
+  // Deleting on one device does not come back from the other
+  let del = clone(start); del.matches = del.matches.filter((m) => m.name !== 'Round 2'); del = stamp(start, del, 5000);
+  t(!mergeData(start, del).matches.some((m) => m.name === 'Round 2') && !mergeData(del, start).matches.some((m) => m.name === 'Round 2'), 'a deleted match stays deleted');
+  // New match on each device: both kept
+  let x = clone(start); x.matches.push(newMatch(x.players, { name: 'Mac new' })); x = stamp(start, x, 6000);
+  let y = clone(start); y.matches.push(newMatch(y.players, { name: 'Phone new' })); y = stamp(start, y, 6000);
+  const xy = mergeData(x, y);
+  t(xy.matches.some((m) => m.name === 'Mac new') && xy.matches.some((m) => m.name === 'Phone new'), 'new matches from both devices are kept');
+  // A brand-new device with default data does not overwrite real players
+  const fresh = normaliseData({});
+  const oldMac = normaliseData({ players: base0.players.map((p, i) => ({ id: p.id, name: `Real ${i + 1}` })), matches: [] }); // saved before sync existed
+  t(mergeData(fresh, oldMac).players[0].name === 'Real 1' && mergeData(oldMac, fresh).players[0].name === 'Real 1', 'a fresh device never replaces a real team with default names');
+  const withMatch = normaliseData({ players: base0.players, matches: [m1], currentMatchId: m1.id });
+  t(mergeData(fresh, withMatch).currentMatchId === m1.id, 'a fresh device keeps the existing current match');
 }
 
 console.log('Data');

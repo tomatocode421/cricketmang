@@ -69,7 +69,7 @@ export default function Sidebar({ onBackup, onSearch }) {
       <div className="sidebar-footer">
         <button className="nav-item" onClick={onBackup}>
           <HardDriveDownload size={17} strokeWidth={1.9} />
-          Backup &amp; Restore
+          Sync &amp; Backup
         </button>
       </div>
     </aside>

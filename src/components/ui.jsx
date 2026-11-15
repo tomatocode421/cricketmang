@@ -151,10 +151,21 @@ export function UIProvider({ children }) {
 
 /* ---------- Save status ---------- */
 export function SaveIndicator() {
-  const { saveState, data } = useStore();
-  const label = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved changes', error: 'Save failed — retrying' }[saveState];
+  const { saveState, data, sync } = useStore();
+  let label = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved changes', error: 'Save failed — retrying' }[saveState];
+  let cls = saveState;
+  if (saveState === 'saved' && sync?.enabled) {
+    if (sync.state === 'syncing') (label = 'Syncing…'), (cls = 'saving');
+    else if (sync.state === 'error') (label = 'Saved · sync problem'), (cls = 'unsaved');
+    else if (sync.state === 'offline') (label = 'Saved · offline'), (cls = 'unsaved');
+    else if (sync.state === 'synced' && sync.lastSync) label = 'Saved & synced';
+  }
   return (
-    <span className={`save-pill ${saveState}`} title={data.savedAt ? `Last saved ${new Date(data.savedAt).toLocaleString()}` : ''}>
+    <span
+      className={`save-pill ${cls}`}
+      role="status"
+      title={[data.savedAt && `Last saved ${new Date(data.savedAt).toLocaleString()}`, sync?.error].filter(Boolean).join(' — ')}
+    >
       <span className="save-dot" />
       {label}
     </span>

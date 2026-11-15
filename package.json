@@ -13,7 +13,8 @@
     "dist": "vite build && electron-builder --mac --publish never",
     "test": "node tests/logic.test.mjs",
     "e2e": "vite build && node tests/e2e.cjs",
-    "e2e:mobile": "vite build && node tests/mobile.cjs && node tests/overflow.cjs"
+    "e2e:mobile": "vite build && node tests/mobile.cjs && node tests/overflow.cjs",
+    "e2e:sync": "vite build && node tests/sync.cjs"
   },
   "build": {
     "appId": "com.personal.crickettms",

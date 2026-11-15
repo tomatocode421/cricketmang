@@ -464,7 +464,7 @@ async function nav(page, label) {
   check((await page.locator('.topbar .subtitle').innerText()).includes('Round 7'), 'returning goes back to current match');
 
   console.log('Backup & restore');
-  await page.click('text=Backup & Restore');
+  await page.click('text=Sync & Backup');
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('text=Save backup…')]);
   const backupPath = await download.path();
   const backup = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
@@ -474,7 +474,7 @@ async function nav(page, label) {
   // Make a change, then restore the backup
   await nav(page, 'Player Management');
   await page.fill('[aria-label="Player 2 name"]', 'CHANGED');
-  await page.click('text=Backup & Restore');
+  await page.click('text=Sync & Backup');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('text=Choose file…')]);
   await chooser.setFiles(backupPath);
   await page.waitForSelector('text=Restore this backup?');

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Upload, FolderOpen } from 'lucide-react';
 import { useStore } from '../store.jsx';
 import { Modal, useDialog, useToast } from './ui.jsx';
+import SyncPanel from './SyncPanel.jsx';
 
 const isValidBackup = (d) => d && typeof d === 'object' && Array.isArray(d.players) && Array.isArray(d.matches);
 
@@ -88,10 +89,11 @@ export default function BackupModal({ onClose }) {
   };
 
   return (
-    <Modal title="Backup & Restore" onClose={onClose} footer={<button className="btn" onClick={onClose}>Close</button>}>
+    <Modal title="Sync & Backup" onClose={onClose} footer={<button className="btn" onClick={onClose}>Close</button>}>
       <div className="stack">
+        <SyncPanel />
         <p className="muted">
-          Everything is saved automatically on this Mac. Create a backup file to keep a copy somewhere safe (for example iCloud Drive or a USB stick), and restore it later if needed.
+          Everything is saved automatically on this device. Create a backup file to keep a copy somewhere safe (for example iCloud Drive or a USB stick), and restore it later if needed.
         </p>
         <div className="panel panel-pad row" style={{ background: 'var(--panel-2)' }}>
           <Download size={20} color="var(--green-soft)" />
@@ -114,9 +116,6 @@ export default function BackupModal({ onClose }) {
           </button>
           <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={onFile} />
         </div>
-        <p className="faint small">
-          To move your information between your Mac and iPhone, save a backup on one (on iPhone you can AirDrop it or save it to Files) and restore it on the other.
-        </p>
         {location && (
           <p className="faint small row">
             <FolderOpen size={14} /> Data file: {location}

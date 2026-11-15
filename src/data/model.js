@@ -166,6 +166,7 @@ export const initialData = () => {
     matches: [],
     tips: [],
     activity: [],
+    deleted: { matches: [], tips: [] },
     savedAt: null,
   };
 };
@@ -181,7 +182,12 @@ export function normaliseData(raw) {
   data.matches = Array.isArray(data.matches) ? data.matches.map((m) => normaliseMatch(m, data.players)) : [];
   data.tips = Array.isArray(data.tips) ? data.tips : [];
   data.activity = Array.isArray(data.activity) ? data.activity : [];
+  data.deleted = { matches: data.deleted?.matches || [], tips: data.deleted?.tips || [] };
+  // Data from before sync existed has no player timestamp: if the team was customised,
+  // mark it so a brand-new device's default "Player 1…11" never replaces it.
+  if (!data.playersUpdatedAt && data.players.some((p) => (p.name && !/^Player \d+$/.test(p.name.trim())) || p.role || p.bowling || p.bats === 'Left')) data.playersUpdatedAt = 1;
   if (data.currentMatchId && !data.matches.find((m) => m.id === data.currentMatchId)) data.currentMatchId = null;
+  if (data.currentMatchId && !data.currentMatchAt) data.currentMatchAt = 1;
   return data;
 }
 
