@@ -3,7 +3,7 @@ import { useStore, logActivity } from '../store.jsx';
 import { PageHeader, Select, SourceTag, useNav, useToast } from '../components/ui.jsx';
 import NoMatch from '../components/NoMatch.jsx';
 import Lineup from '../components/Lineup.jsx';
-import { assignInLineup, formatInfo, matchTitle, moveItem, ordinal, playerName } from '../data/model.js';
+import { matchXI, assignInLineup, formatInfo, matchTitle, moveItem, ordinal, playerName } from '../data/model.js';
 import { analyseMatch } from '../lib/tactics.js';
 
 const COLS = '30px 50px 120px minmax(170px, 1fr) 96px minmax(180px, 1.5fr) 34px';
@@ -219,7 +219,7 @@ export default function Bowling() {
                       value={row.playerId || ''}
                       onChange={(v) => assign(i, v)}
                       placeholder="— Select bowler —"
-                      options={data.players.map((p) => {
+                      options={data.players.filter((p) => matchXI(m, data.players).includes(p.id)).map((p) => {
                         const at = m.bowling.findIndex((r) => r.playerId === p.id);
                         return { value: p.id, label: `${p.name || 'Unnamed player'}${p.bowling ? ` · ${p.bowling}` : ''}${at >= 0 && at !== i ? `  (bowls ${ordinal(at + 1)})` : ''}` };
                       })}

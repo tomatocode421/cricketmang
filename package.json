@@ -14,7 +14,8 @@
     "test": "node tests/logic.test.mjs",
     "e2e": "vite build && node tests/e2e.cjs",
     "e2e:mobile": "vite build && node tests/mobile.cjs && node tests/overflow.cjs",
-    "e2e:sync": "vite build && node tests/sync.cjs"
+    "e2e:sync": "vite build && node tests/sync.cjs",
+    "e2e:addon": "vite build && node tests/addon.cjs"
   },
   "build": {
     "appId": "com.personal.crickettms",

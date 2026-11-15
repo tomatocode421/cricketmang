@@ -10,6 +10,8 @@ import {
   Users,
   History,
   HardDriveDownload,
+  Radio,
+  BarChart3,
   Search,
 } from 'lucide-react';
 import { useNav } from './ui.jsx';
@@ -19,6 +21,7 @@ export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'match', label: 'Current Match', icon: Trophy },
   { id: 'matchday', label: 'Match Day', icon: CloudSun },
+  { id: 'live', label: 'Live Match', icon: Radio },
   { id: 'fielding', label: 'Fielding Positions', icon: Crosshair },
   { id: 'batting', label: 'Batting Order', icon: ListOrdered },
   { id: 'bowling', label: 'Bowling Order', icon: CircleDot },
@@ -26,6 +29,7 @@ export const NAV_ITEMS = [
   { id: 'tips', label: 'Tips and Improvements', icon: Lightbulb },
   { id: 'players', label: 'Player Management', icon: Users },
   { id: 'history', label: 'Match History', icon: History },
+  { id: 'stats', label: 'Stats & Play-Cricket', icon: BarChart3 },
 ];
 
 function BallLogo() {
@@ -58,7 +62,7 @@ export default function Sidebar({ onBackup, onSearch }) {
         {NAV_ITEMS.map((item, i) => (
           <div key={item.id}>
             {i === 1 && <div className="nav-section">Match</div>}
-            {i === 6 && <div className="nav-section">Team &amp; records</div>}
+            {i === 7 && <div className="nav-section">Team &amp; records</div>}
             <button className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => go(item.id)} style={{ width: '100%' }} title={i < 9 ? `${item.label} (${MOD}${i + 1})` : item.label}>
               <item.icon size={17} strokeWidth={1.9} />
               {item.label}

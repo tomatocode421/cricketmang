@@ -220,7 +220,7 @@ function GettingStarted({ data, current, go, openNewMatch, hide }) {
   if (data.hideGettingStarted) return null;
   const setup = current?.fielding.setups.find((x) => x.id === current.fielding.activeSetupId) || current?.fielding.setups[0];
   const steps = [
-    { label: 'Name your 11 players', done: data.players.every((p) => p.name.trim() && !/^Player \d+$/.test(p.name.trim())), run: () => go('players') },
+    { label: 'Name your 12 players', done: data.players.every((p) => p.name.trim() && !/^Player \d+$/.test(p.name.trim())), run: () => go('players') },
     { label: 'Add bowling styles and your keeper', done: data.players.some((p) => p.bowling) && data.players.some((p) => p.role === 'Wicketkeeper'), run: () => go('players') },
     { label: 'Create your next match', done: data.matches.length > 0, run: openNewMatch },
     { label: 'Place your fielders', done: !!setup && fieldingSummary(setup).count > 0, run: () => (current ? go('fielding') : openNewMatch()) },

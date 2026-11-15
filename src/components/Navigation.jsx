@@ -201,13 +201,13 @@ export function MatchSwitcher() {
 }
 
 /* ---------- Phone navigation ---------- */
-const TAB_IDS = ['dashboard', 'matchday', 'fielding', 'batting'];
+const TAB_IDS = ['dashboard', 'live', 'fielding', 'matchday'];
 
 export function MobileNav({ onSearch }) {
   const { page, go, openBackup } = useNav();
   const [more, setMore] = useState(false);
   const tabs = TAB_IDS.map((id) => NAV_ITEMS.find((n) => n.id === id));
-  const short = { dashboard: 'Home', matchday: 'Match Day', fielding: 'Fielding', batting: 'Batting' };
+  const short = { dashboard: 'Home', live: 'Live', fielding: 'Fielding', matchday: 'Match Day' };
   const inMore = !TAB_IDS.includes(page);
   return (
     <>

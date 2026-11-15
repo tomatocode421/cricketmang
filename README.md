@@ -18,6 +18,13 @@ A personal macOS desktop app for organising a cricket team and preparing for mat
 - **Game Notes**: a notebook for each match, split into ten sections.
 - **Tips and Improvements**: categories and statuses, with search and filters.
 - **Player Management**: the 11-player roster that every other section uses, with each player's role, bowling style and batting hand. Match Day bowling advice uses these to name your actual pace and spin options.
+- **12-player squad**: pick the playing XI for each match; the 12th player is marked as reserve.
+- **Custom fielding**: move any fielder with horizontal and vertical sliders or by dragging, zoom the field, rename positions and add reusable custom positions. Exact spots are saved with each setup.
+- **Live Match**: ball-by-ball scoring with run rates, batting and bowling figures, partnerships and scoring areas. It gives tactical suggestions (fielding, bowling, batting, positioning) based on the figures, which you can accept or dismiss.
+- **Stats & Play-Cricket**: season stats from imported scorecards and matches scored live.
+  - The Mac app can connect to Play-Cricket with your club's API key, which stays on the Mac. You can link players and import scorecards.
+  - You can also import a scorecard as CSV on any device.
+  - Play-Cricket's official access covers results after play, not a live feed.
 - **Field templates**: one-tap balanced, new-ball, spin, powerplay, death-overs and defensive fields. A **left-handed batter** switch mirrors the field.
 - **Team sheet**: turns the batting order, bowling plan and field into a message to copy or share with your team.
 - **Match History**: read-only review of every match, editing earlier matches, and starting a new match by copying from a previous one.

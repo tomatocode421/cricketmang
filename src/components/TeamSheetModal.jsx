@@ -3,13 +3,13 @@ import { Copy, Share2, Check } from 'lucide-react';
 import { useStore } from '../store.jsx';
 import { Modal, useToast } from './ui.jsx';
 import { teamSheet } from '../data/model.js';
-import { POSITIONS } from '../data/positions.js';
+import { fieldPositions } from '../data/positions.js';
 
 // Shows the match line-up as text that can be copied or shared to the team.
 export default function TeamSheetModal({ match, onClose }) {
   const { data } = useStore();
   const toast = useToast();
-  const text = useMemo(() => teamSheet(match, data.players, { POSITIONS }), [match, data.players]);
+  const text = useMemo(() => teamSheet(match, data.players, { fieldPositions }), [match, data.players]);
   const [value, setValue] = useState(text);
   const [copied, setCopied] = useState(false);
   const area = useRef();

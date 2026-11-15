@@ -122,7 +122,7 @@ function serve() {
 
   // Batting with arrows
   console.log('Batting');
-  await tab('Batting');
+  await more('Batting Order');
   check(!(await page.locator('.drag-handle').first().isVisible()), 'drag handles replaced on touch screens');
   const first = () => page.locator('.lineup-row').nth(0).locator('.c-player option:checked').innerText().then((t) => t.split(' · ')[0].trim());
   const second = () => page.locator('.lineup-row').nth(1).locator('.c-player option:checked').innerText().then((t) => t.split(' · ')[0].trim());

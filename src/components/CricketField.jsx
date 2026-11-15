@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { FIELD, POSITIONS, SCORING_AREAS } from '../data/positions.js';
+import { FIELD, SCORING_AREAS, clampToField, fieldPositions } from '../data/positions.js';
 
 const { cx, cy, rx, ry, innerRx, innerRy, strikerY, bowlerY } = FIELD;
 
@@ -62,8 +62,12 @@ export default function CricketField({
   highlightAreas = [],
   compact = false,
   leftHanded = false, // mirror the field for a left-handed batter
+  custom = [], // the setup's own custom positions
+  onMove = null, // (id, x, y) — when given, fielders can be dragged around the field
+  zoom = 1,
 }) {
-  const POS = leftHanded ? POSITIONS.map((p) => ({ ...p, x: FIELD.width - p.x })) : POSITIONS;
+  const mirror = (x) => (leftHanded ? FIELD.width - x : x);
+  const POS = fieldPositions({ positions, custom }).map((p) => ({ ...p, x: mirror(p.x) }));
   const wedge = (a) => (leftHanded ? wedgePath(-a.to, -a.from) : wedgePath(a.from, a.to));
   // On small screens, scale text up so names stay readable.
   const svgRef = useRef();
@@ -79,16 +83,114 @@ export default function CricketField({
     return () => ro.disconnect();
   }, []);
   const small = k > 1.3;
+  const kz = Math.max(0.7, k / zoom);
+
+  // ----- Zoom: centre on the selected fielder, or the middle of the field -----
+  const focusPos = POS.find((p) => p.id === focusedId);
+  const vw = FIELD.width / zoom;
+  const vh = FIELD.height / zoom;
+  const fx = zoom > 1 && focusPos ? focusPos.x : FIELD.cx;
+  const fy = zoom > 1 && focusPos ? focusPos.y : FIELD.cy;
+  const vx = Math.min(Math.max(0, fx - vw / 2), FIELD.width - vw);
+  const vy = Math.min(Math.max(0, fy - vh / 2), FIELD.height - vh);
+
+  // ----- Dragging fielders (mouse, touch and pen; touch events for older iPhones) -----
+  const drag = useRef(null);
+  const frame = useRef(0);
+  const toField = (clientX, clientY) => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!ctm) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const p = pt.matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
+  };
+  const startDrag = (id, clientX, clientY) => {
+    if (!onMove) return;
+    drag.current = { id, start: { clientX, clientY }, moved: false };
+  };
+  const moveDrag = (clientX, clientY) => {
+    const d = drag.current;
+    if (!d) return false;
+    if (!d.moved && Math.hypot(clientX - d.start.clientX, clientY - d.start.clientY) < 4) return true;
+    d.moved = true;
+    const p = toField(clientX, clientY);
+    if (!p) return true;
+    const c = clampToField(mirror(p.x), p.y); // stored for a right-hander
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => onMove(d.id, c.x, c.y));
+    return true;
+  };
+  const endDrag = () => {
+    const d = drag.current;
+    drag.current = null;
+    return d;
+  };
+  const markerHandlers = (id) =>
+    onMove
+      ? {
+          onPointerDown: (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
+            e.currentTarget.ownerSVGElement?.setPointerCapture?.(e.pointerId);
+            startDrag(id, e.clientX, e.clientY);
+          },
+          onTouchStart: (e) => {
+            if (window.PointerEvent) return;
+            const t = e.touches[0];
+            startDrag(id, t.clientX, t.clientY);
+          },
+          onClick: (e) => {
+            if (wasDragged.current) {
+              e.stopPropagation();
+              wasDragged.current = false;
+              return;
+            }
+            onMarkerClick?.(id);
+          },
+        }
+      : { onClick: () => onMarkerClick?.(id) };
+  const wasDragged = useRef(false);
+  const svgHandlers = onMove
+    ? {
+        onPointerMove: (e) => moveDrag(e.clientX, e.clientY),
+        onPointerUp: () => {
+          const d = endDrag();
+          wasDragged.current = !!d?.moved;
+        },
+        onPointerCancel: endDrag,
+        onTouchMove: (e) => {
+          if (window.PointerEvent || !drag.current) return;
+          e.preventDefault();
+          moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+        },
+        onTouchEnd: () => {
+          if (window.PointerEvent) return;
+          const d = endDrag();
+          if (d && !d.moved) onMarkerClick?.(d.id);
+          wasDragged.current = !!d?.moved;
+        },
+      }
+    : {};
   const active = POS.filter((p) => positions[p.id]?.active);
   const markers = active.map((p) => {
     const name = positions[p.id]?.player?.trim() || '';
     return { id: p.id, x: p.x, y: p.y, name, label: name || p.name, pos: p };
   });
-  const labels = useMemo(() => layoutLabels(markers, k), [JSON.stringify(markers.map((m) => [m.id, m.label])), k, leftHanded]); // eslint-disable-line
+  const labels = useMemo(() => layoutLabels(markers, kz), [JSON.stringify(markers.map((m) => [m.id, m.label, Math.round(m.x), Math.round(m.y)])), kz, leftHanded]); // eslint-disable-line
   const maxHeat = heat ? Math.max(1, ...Object.values(heat)) : 1;
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${FIELD.width} ${FIELD.height}`} role="img" aria-label="Cricket field diagram" preserveAspectRatio="xMidYMid meet">
+    <svg
+      ref={svgRef}
+      viewBox={`${vx} ${vy} ${vw} ${vh}`}
+      role="img"
+      aria-label="Cricket field diagram"
+      preserveAspectRatio="xMidYMid meet"
+      className={onMove ? 'field-editable' : ''}
+      {...svgHandlers}
+    >
       <defs>
         <clipPath id="oval">
           <ellipse cx={cx} cy={cy} rx={rx} ry={ry} />
@@ -180,7 +282,7 @@ export default function CricketField({
       {/* Inactive positions */}
       {showInactive &&
         POS.filter((p) => !positions[p.id]?.active).map((p) => (
-          <g key={p.id} className="marker" onClick={() => onMarkerClick?.(p.id)} opacity={focusedId === p.id ? 1 : 0.55}>
+          <g key={p.id} className="marker" onClick={() => onMarkerClick?.(p.id)} opacity={focusedId === p.id ? 1 : 0.55} data-pos={p.id}>
             <title>{`${p.name} (not selected)`}</title>
             <circle cx={p.x} cy={p.y} r={focusedId === p.id ? 10 : 6} fill="none" stroke="#e8f5ea" strokeWidth="2" strokeDasharray={focusedId === p.id ? '' : '3 3'} />
             {!compact && !small && !markers.some((mk) => Math.hypot(mk.x - p.x, mk.y - p.y) < 70) && (
@@ -196,7 +298,7 @@ export default function CricketField({
         const l = labels[m.id];
         const focused = focusedId === m.id;
         return (
-          <g key={m.id} className="marker" onClick={() => onMarkerClick?.(m.id)} filter="url(#shadow)">
+          <g key={m.id} className={`marker ${onMove ? 'draggable' : ''}`} filter="url(#shadow)" data-pos={m.id} {...markerHandlers(m.id)}>
             <title>{`${m.pos.name}: ${m.name || 'no player entered'}`}</title>
             {focused && <circle cx={m.x} cy={m.y} r="27" fill="none" stroke="#ffd27a" strokeWidth="3" />}
             <circle cx={m.x} cy={m.y} r="19" fill={m.name ? '#1f9d55' : '#2c5a3a'} stroke="#ffffff" strokeWidth="2.5" />
@@ -204,7 +306,7 @@ export default function CricketField({
               {m.name ? initials(m.name) : '?'}
             </text>
             {l && !compact && (
-              <text x={l.tx} y={l.ty} textAnchor={l.anchor} className="marker-label" fontSize={17 * k} fill={m.name ? '#ffffff' : '#cfe3d4'} fontStyle={m.name ? 'normal' : 'italic'}>
+              <text x={l.tx} y={l.ty} textAnchor={l.anchor} className="marker-label" fontSize={17 * kz} fill={m.name ? '#ffffff' : '#cfe3d4'} fontStyle={m.name ? 'normal' : 'italic'}>
                 {m.label}
               </text>
             )}

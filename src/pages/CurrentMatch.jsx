@@ -4,7 +4,8 @@ import TeamSheetModal from '../components/TeamSheetModal.jsx';
 import { useStore, logActivity } from '../store.jsx';
 import { Field, PageHeader, Select, SourceTag, useDialog, useNav, useToast } from '../components/ui.jsx';
 import NoMatch from '../components/NoMatch.jsx';
-import { MATCH_FORMATS, fieldingSummary, formatDate, formatInfo, matchTitle } from '../data/model.js';
+import { MATCH_FORMATS, XI_SIZE, changeXI, fieldingSummary, formatDate, formatInfo, matchTitle, matchXI } from '../data/model.js';
+import { fmt1, playerStats } from '../lib/stats.js';
 import { analyseMatch } from '../lib/tactics.js';
 
 export function MatchDetailsForm({ m, set, setMd }) {
@@ -199,6 +200,7 @@ export default function CurrentMatch() {
             </div>
           </section>
 
+          <TeamSelection m={m} />
           <div className="grid split" style={{ gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', alignItems: 'start' }}>
             <section className="panel">
               <div className="panel-head">
@@ -284,6 +286,52 @@ function OtherMatches() {
           ))}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+function TeamSelection({ m }) {
+  const { data, updateMatch } = useStore();
+  const roster = m.rosterSnapshot || data.players;
+  const xi = matchXI(m, roster);
+  const stats = playerStats(data);
+  const swap = (inId, outId) => updateMatch(m.id, (mm) => changeXI(mm, roster, xi.map((x) => (x === outId ? inId : x))));
+  const reserve = roster.filter((p) => !xi.includes(p.id));
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Playing XI</h2>
+        <span className="muted small">
+          {xi.length} of {XI_SIZE} picked · 12th player: {reserve.map((p) => p.name).join(', ') || '—'}
+        </span>
+      </div>
+      <div className="panel-body xi-grid">
+        {roster.map((p) => {
+          const st = stats.get(p.id);
+          const playing = xi.includes(p.id);
+          return (
+            <div key={p.id} className={`xi-row ${playing ? '' : 'reserve'}`}>
+              <span className="xi-name">
+                {p.name}
+                {!playing && <span className="tag amber" style={{ marginLeft: 6 }}>12th</span>}
+              </span>
+              <span className="faint small">{st && st.played ? `${st.runs} runs @ ${fmt1(st.avg)} · ${st.wickets} wkts` : p.bowling || p.role || ''}</span>
+              {playing ? (
+                reserve.length > 0 && (
+                  <button className="btn sm ghost" onClick={() => swap(reserve[0].id, p.id)} aria-label={`Make ${p.name} 12th player`}>
+                    Make 12th
+                  </button>
+                )
+              ) : (
+                <span className="faint small">reserve</span>
+              )}
+            </div>
+          );
+        })}
+        <p className="faint small" style={{ gridColumn: '1 / -1' }}>
+          Making someone 12th brings the current 12th player into the XI; they take the same place in the batting and bowling orders. The 12th player is never put in a fielding position automatically.
+        </p>
+      </div>
     </section>
   );
 }

@@ -3,8 +3,12 @@
 import { analyseMatch } from '../src/lib/tactics.js';
 import { rainLevel, weatherWarning, locationCandidates, fetchMatchWeather } from '../src/lib/weather.js';
 import { assignInLineup, moveItem, newMatch, defaultPlayers, normaliseData, formatInfo, teamSheet } from '../src/data/model.js';
-import { POSITIONS, FIELD_TEMPLATES } from '../src/data/positions.js';
+import { POSITIONS, FIELD_TEMPLATES, fieldPositions } from '../src/data/positions.js';
 import { mergeData, stamp, sameData } from '../src/data/merge.js';
+import { newLive, recordBall, undoBall, computeInnings, liveSuggestions, applySuggestion } from '../src/lib/live.js';
+import { parseScorecardCsv, playerStats, CSV_TEMPLATE } from '../src/lib/stats.js';
+import { changeXI, matchXI } from '../src/data/model.js';
+import { clampToField, areaAt } from '../src/data/positions.js';
 
 let failed = 0;
 const t = (cond, msg) => {
@@ -104,7 +108,7 @@ console.log('Team sheet and templates');
   const mm = newMatch(sq, { name: 'Round 6', opposition: 'Eastwood CC', format: 'T20' });
   mm.bowling[0] = { playerId: sq[3].id, overs: '4', notes: '' };
   mm.fielding.setups[0].positions.wk = { active: true, player: 'Henry' };
-  const text = teamSheet(mm, sq, { POSITIONS });
+  const text = teamSheet(mm, sq, { fieldPositions });
   t(text.includes('Round 6 vs Eastwood CC') && text.includes('1. Player 1') && text.includes('Player 4 – 4 overs') && text.includes('Wicketkeeper: Henry'), 'team sheet includes match, batting, bowling and field');
   t(FIELD_TEMPLATES.every((tp) => tp.positions.length === 10 && tp.positions.includes('wk') && tp.positions.every((id) => POSITIONS.some((p) => p.id === id))), 'every template has 10 valid positions including a keeper');
   const outside = (id) => FIELD_TEMPLATES.find((x) => x.id === id).positions.filter((pid) => POSITIONS.find((p) => p.id === pid).group === 'outer').length;
@@ -153,9 +157,63 @@ console.log('Sync merging');
   t(mergeData(fresh, withMatch).currentMatchId === m1.id, 'a fresh device keeps the existing current match');
 }
 
+console.log('Squad, live scoring, stats');
+{
+  const sq = defaultPlayers().map((p, i) => ({ ...p, name: `P${i + 1}`, bowling: i >= 6 ? 'Fast' : '' }));
+  t(sq.length === 12, 'squad has 12 players');
+  const mm = newMatch(sq, { format: 'T20', opposition: 'Opp' });
+  t(matchXI(mm, sq).length === 11 && !matchXI(mm, sq).includes(sq[11].id), 'XI is 11 players, 12th left out');
+  changeXI(mm, sq, matchXI(mm, sq).map((id) => (id === sq[0].id ? sq[11].id : id)));
+  t(mm.batting[0].playerId === sq[11].id && !mm.batting.some((r) => r.playerId === sq[0].id), 'swapping in the 12th player takes over the batting slot');
+  // live scoring: we bowl
+  mm.live = newLive(mm, { battingFirst: 'them' });
+  const inn = mm.live.innings[0];
+  inn.opp = [{ id: 'o1', name: 'A' }, { id: 'o2', name: 'B' }];
+  inn.striker = 'o1'; inn.nonStriker = 'o2'; inn.bowler = sq[7].id;
+  recordBall(inn, { runs: 1 });
+  t(inn.striker === 'o2', 'a single swaps the strike');
+  recordBall(inn, { extra: 'wd', extraRuns: 0 });
+  for (let i = 0; i < 5; i++) recordBall(inn, { runs: 4, area: 'cover' });
+  let s = computeInnings(inn);
+  t(s.runs === 22 && s.legal === 6 && s.overs === '1.0' && inn.bowler === null, 'score, overs and end of over are right (wide not a legal ball)');
+  t(s.bowlers.get(sq[7].id).runs === 22 && s.batters.get('o2').runs === 20, 'bowler and batter figures add up');
+  undoBall(inn);
+  t(computeInnings(inn).runs === 18 && inn.bowler === sq[7].id, 'undo restores score and bowler');
+  recordBall(inn, { runs: 4, area: 'cover' });
+  inn.bowler = sq[8].id;
+  for (let i = 0; i < 6; i++) recordBall(inn, { runs: 4, area: 'cover' });
+  inn.bowler = sq[7].id;
+  for (let i = 0; i < 6; i++) recordBall(inn, { runs: 4, area: 'cover' });
+  s = computeInnings(inn);
+  const setup = mm.fielding.setups[0];
+  setup.positions = { wk: { active: true, player: 'P9' }, midon: { active: true, player: 'P3' }, fineleg: { active: true, player: 'P4' } };
+  const sugs = liveSuggestions({ match: mm, roster: sq, inn, s, setup });
+  const area = sugs.find((x) => x.id.startsWith('F-area'));
+  t(!!area && area.title.includes('Cover'), 'suggests protecting the area a batter keeps scoring in');
+  t(sugs.some((x) => x.type === 'Bowling'), 'suggests a bowling change for an expensive bowler');
+  applySuggestion(mm, area, sq);
+  t(Object.entries(setup.positions).some(([pid, st]) => st.active && ['cover', 'deepcover', 'extracover'].includes(pid)), 'accepting the suggestion moves a fielder into that area');
+  const few = newLive(mm, { battingFirst: 'them' }).innings[0];
+  few.opp = [{ id: 'x', name: 'X' }, { id: 'y', name: 'Y' }]; few.striker = 'x'; few.nonStriker = 'y'; few.bowler = sq[7].id;
+  recordBall(few, { runs: 4, area: 'cover' }); recordBall(few, { runs: 4, area: 'cover' });
+  t(liveSuggestions({ match: mm, roster: sq, inn: few, s: computeInnings(few), setup }).length === 0, 'no suggestions from just two balls');
+  // CSV + stats
+  const parsed = parseScorecardCsv(CSV_TEMPLATE);
+  t(parsed.innings.length === 2 && parsed.innings[0].bat[0].runs === 34, 'CSV template parses');
+  t(parsed.innings[1].bat[0].fielder === 'Patel', 'fielder read from "c Patel b Brown"');
+  const d = normaliseData({ players: [{ id: 'a', name: 'James Carter' }, { id: 'b', name: 'Liam Patel' }, { id: 'c', name: 'Oliver Brown' }], matches: [] });
+  d.scorecards = [{ id: 'sc1', innings: parsed.innings }];
+  const st = playerStats(d);
+  t(st.get('a').runs === 34 && st.get('c').wickets === 2 && st.get('b').catches === 1, 'season stats from an imported scorecard (runs, wickets, catches)');
+  // custom positions
+  const c = clampToField(2000, 550);
+  t(c.x < 1000 && c.x > 900, 'positions are kept inside the boundary');
+  t(areaAt(240, 640) === 'cover' && areaAt(760, 660) === 'midwicket', 'field coordinates map to the right scoring area');
+}
+
 console.log('Data');
 const n = normaliseData({ players: [{ id: 'p', name: 'X' }], matches: [{ id: 'm1', batting: [] }] });
-t(n.players.length === 11 && n.matches[0].batting.length === 11 && n.matches[0].matchDay.checklist.length > 0, 'partial data is repaired');
+t(n.players.length === 12 && n.matches[0].batting.length === 11 && n.matches[0].matchDay.checklist.length > 0, 'partial data is repaired');
 
 console.log(failed ? `\n${failed} FAILED` : '\nAll logic tests passed');
 process.exit(failed ? 1 : 0);

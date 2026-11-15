@@ -17,6 +17,8 @@ import GameNotes from './pages/GameNotes.jsx';
 import Tips from './pages/Tips.jsx';
 import Players from './pages/Players.jsx';
 import History from './pages/History.jsx';
+import Live from './pages/Live.jsx';
+import Stats from './pages/Stats.jsx';
 import { matchTitle } from './data/model.js';
 
 const PAGES = {
@@ -30,6 +32,8 @@ const PAGES = {
   tips: Tips,
   players: Players,
   history: History,
+  live: Live,
+  stats: Stats,
 };
 
 function Shell() {

@@ -3,7 +3,7 @@ import { useStore, logActivity } from '../store.jsx';
 import { PageHeader, Select, useDialog, useToast } from '../components/ui.jsx';
 import NoMatch from '../components/NoMatch.jsx';
 import Lineup from '../components/Lineup.jsx';
-import { assignInLineup, matchTitle, moveItem, ordinal, playerName } from '../data/model.js';
+import { matchXI, assignInLineup, matchTitle, moveItem, ordinal, playerName } from '../data/model.js';
 
 const COLS = '30px 50px 120px minmax(180px, 1fr) minmax(200px, 1.6fr)';
 
@@ -90,7 +90,7 @@ export default function Batting() {
                   value={row.playerId || ''}
                   onChange={(v) => assign(i, v)}
                   placeholder="— Select player —"
-                  options={data.players.map((p) => {
+                  options={data.players.filter((p) => matchXI(m, data.players).includes(p.id)).map((p) => {
                     const at = m.batting.findIndex((r) => r.playerId === p.id);
                     const tag = [p.role === 'Wicketkeeper' && 'WK', p.bats === 'Left' && 'LHB'].filter(Boolean).join(', ');
                     return { value: p.id, label: `${p.name || 'Unnamed player'}${tag ? ` · ${tag}` : ''}${at >= 0 && at !== i ? `  (bats ${ordinal(at + 1)})` : ''}` };

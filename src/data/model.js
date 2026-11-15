@@ -91,8 +91,49 @@ export const playerTag = (p) => {
   return bits.join(', ');
 };
 
+// The squad has 12 players; 11 are picked for each match and the other is the 12th player (reserve).
+export const SQUAD_SIZE = 12;
+export const XI_SIZE = 11;
+
 export const defaultPlayers = () =>
-  Array.from({ length: 11 }, (_, i) => ({ id: uid('pl'), name: `Player ${i + 1}` }));
+  Array.from({ length: SQUAD_SIZE }, (_, i) => ({ id: uid('pl'), name: `Player ${i + 1}` }));
+
+// The 11 players picked for a match (always 11 valid squad ids, in squad order where unset).
+export function matchXI(match, players) {
+  const ids = new Set(players.map((p) => p.id));
+  const xi = (match?.xi || []).filter((id) => ids.has(id));
+  for (const p of players) {
+    if (xi.length >= XI_SIZE) break;
+    if (!xi.includes(p.id)) xi.push(p.id);
+  }
+  return xi.slice(0, XI_SIZE);
+}
+export const reservePlayers = (match, players) => {
+  const xi = matchXI(match, players);
+  return players.filter((p) => !xi.includes(p.id));
+};
+
+// Change the playing XI. Anyone dropped is replaced by the incoming player in the batting
+// and bowling orders, so nobody who isn't playing stays in a lineup.
+export function changeXI(match, players, nextXI) {
+  const before = matchXI(match, players);
+  const out = before.filter((id) => !nextXI.includes(id));
+  const incoming = nextXI.filter((id) => !before.includes(id));
+  match.xi = nextXI.slice(0, XI_SIZE);
+  out.forEach((id, i) => {
+    const sub = incoming[i] || null;
+    match.batting = match.batting.map((r) => (r.playerId === id ? { ...r, playerId: sub, notes: '' } : r));
+    match.bowling = match.bowling.map((r) => (r.playerId === id ? { ...r, playerId: sub, notes: '' } : r));
+  });
+  // Anyone in the XI but missing from the batting order fills an empty slot.
+  for (const id of match.xi) {
+    if (!match.batting.some((r) => r.playerId === id)) {
+      const slot = match.batting.findIndex((r) => !r.playerId);
+      if (slot >= 0) match.batting[slot] = { ...match.batting[slot], playerId: id };
+    }
+  }
+  return match;
+}
 
 export const newFieldingSetup = (name = 'Standard Field') => ({
   id: uid('fs'),
@@ -148,7 +189,9 @@ export const newMatch = (players, overrides = {}) => {
     updatedAt: Date.now(),
     rosterSnapshot: null,
     fielding: { setups: [setup], activeSetupId: setup.id },
-    batting: Array.from({ length: 11 }, (_, i) => ({ playerId: players[i]?.id || null, notes: '' })),
+    xi: players.slice(0, XI_SIZE).map((p) => p.id),
+    batting: Array.from({ length: XI_SIZE }, (_, i) => ({ playerId: players[i]?.id || null, notes: '' })),
+    live: null,
     bowling: Array.from({ length: 6 }, () => ({ playerId: null, overs: '', notes: '' })),
     notes: Object.fromEntries(NOTE_SECTIONS.map((s) => [s.id, ''])),
     notesUpdatedAt: null,
@@ -167,6 +210,7 @@ export const initialData = () => {
     tips: [],
     activity: [],
     deleted: { matches: [], tips: [] },
+    scorecards: [],
     savedAt: null,
   };
 };
@@ -177,8 +221,10 @@ export function normaliseData(raw) {
   if (!raw || typeof raw !== 'object') return base;
   const data = { ...base, ...raw };
   if (!Array.isArray(data.players) || data.players.length === 0) data.players = base.players;
-  while (data.players.length < 11) data.players.push({ id: uid('pl'), name: `Player ${data.players.length + 1}` });
-  data.players = data.players.slice(0, 11).map((p) => ({ role: '', bowling: '', bats: 'Right', ...p }));
+  data.players = data.players.slice();
+  while (data.players.length < SQUAD_SIZE) data.players.push({ id: uid('pl'), name: `Player ${data.players.length + 1}` });
+  data.players = data.players.slice(0, SQUAD_SIZE).map((p) => ({ role: '', bowling: '', bats: 'Right', ...p }));
+  data.scorecards = Array.isArray(data.scorecards) ? data.scorecards : [];
   data.matches = Array.isArray(data.matches) ? data.matches.map((m) => normaliseMatch(m, data.players)) : [];
   data.tips = Array.isArray(data.tips) ? data.tips : [];
   data.activity = Array.isArray(data.activity) ? data.activity : [];
@@ -205,6 +251,11 @@ function normaliseMatch(m, players) {
     match.batting = b;
   }
   if (!Array.isArray(match.bowling)) match.bowling = fresh.bowling;
+  if (!Array.isArray(match.xi) || !match.xi.length) {
+    // Older matches: the XI is whoever is in the batting order, topped up in squad order.
+    match.xi = matchXI({ xi: match.batting.map((r) => r.playerId).filter(Boolean) }, players);
+  }
+  match.fielding.setups = match.fielding.setups.map((st) => ({ custom: [], ...st }));
   return match;
 }
 
@@ -275,7 +326,7 @@ export const fieldingSummary = (setup) => {
 };
 
 // Plain-text team sheet for sending to the team (group chat, email, notes).
-export function teamSheet(match, players, { POSITIONS }) {
+export function teamSheet(match, players, { fieldPositions }) {
   const name = (id) => playerName(players, match, id);
   const fmt = formatInfo(match);
   const md = match.matchDay || {};
@@ -296,8 +347,11 @@ export function teamSheet(match, players, { POSITIONS }) {
     lines.push('', 'BOWLING');
     bowl.forEach((r, i) => lines.push(`${i + 1}. ${name(r.playerId)}${Number(r.overs) ? ` – ${r.overs} over${Number(r.overs) === 1 ? '' : 's'}` : ''}`));
   }
+  const roster = match.rosterSnapshot || players;
+  const reserve = reservePlayers(match, roster);
+  if (reserve.length) lines.push('', `12th player: ${reserve.map((p) => p.name).join(', ')}`);
   const setup = match.fielding.setups.find((s) => s.id === match.fielding.activeSetupId) || match.fielding.setups[0];
-  const placed = POSITIONS.filter((p) => setup?.positions[p.id]?.active);
+  const placed = setup ? fieldPositions(setup).filter((p) => setup.positions[p.id]?.active) : [];
   if (placed.length) {
     lines.push('', `FIELD (${setup.name}${setup.leftHanded ? ', left-handed batter' : ''})`);
     placed.forEach((p) => lines.push(`${p.name}: ${setup.positions[p.id].player || '–'}`));

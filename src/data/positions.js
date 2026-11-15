@@ -95,3 +95,67 @@ export const FIELD_TEMPLATES = [
   { id: 'death', name: 'Death overs (5 out)', note: 'Protect the boundary in the last overs.', positions: ['wk', 'point', 'cover', 'midoff', 'shortfineleg', 'deeppoint', 'longoff', 'longon', 'deepmidwicket', 'deepsquareleg'] },
   { id: 'defensive', name: 'Defensive', note: 'Save runs with sweepers on both sides.', positions: ['wk', 'point', 'cover', 'midoff', 'midon', 'deeppoint', 'deepcover', 'longon', 'deepmidwicket', 'deepfineleg'] },
 ];
+
+// ---------- Custom positioning ----------
+// Coordinates use the field drawing's own units (x 0–1000, y 0–1100) for a right-handed
+// batter, so they stay exact whatever the window size. Left-handers are mirrored on display.
+const inEllipse = (x, y, rx, ry) => ((x - FIELD.cx) / rx) ** 2 + ((y - FIELD.cy) / ry) ** 2 <= 1;
+
+// Keep a point on the playing area (inside the boundary rope).
+export function clampToField(x, y) {
+  const rx = FIELD.rx - 30;
+  const ry = FIELD.ry - 30;
+  const dx = x - FIELD.cx;
+  const dy = y - FIELD.cy;
+  const k = (dx / rx) ** 2 + (dy / ry) ** 2;
+  if (k <= 1) return { x: Math.round(x), y: Math.round(y) };
+  const f = 1 / Math.sqrt(k);
+  return { x: Math.round(FIELD.cx + dx * f), y: Math.round(FIELD.cy + dy * f) };
+}
+
+// Every position available in a setup: standard ones (with any moved coordinates or new
+// name) followed by the setup's own custom positions.
+export function fieldPositions(setup) {
+  const pos = setup?.positions || {};
+  const std = POSITIONS.map((p) => {
+    const st = pos[p.id] || {};
+    const x = st.x ?? p.x;
+    const y = st.y ?? p.y;
+    return { ...p, x, y, name: st.label?.trim() || p.name, standardName: p.name, moved: st.x != null, custom: false };
+  });
+  const custom = (setup?.custom || []).map((c) => {
+    const st = pos[c.id] || {};
+    return { id: c.id, name: st.label?.trim() || c.name, standardName: c.name, group: 'custom', x: st.x ?? c.x ?? FIELD.cx, y: st.y ?? c.y ?? 820, custom: true, moved: false };
+  });
+  return [...std, ...custom].map((p) => ({ ...p, area: areaAt(p.x, p.y), outer: !inEllipse(p.x, p.y, FIELD.innerRx, FIELD.innerRy) }));
+}
+
+// Which scoring area a point on the field is in (angle from the striker).
+export function areaAt(x, y) {
+  const dx = FIELD.cx - x; // off side (left) is positive
+  const dy = y - FIELD.strikerY;
+  let deg = (Math.atan2(dx, dy) * 180) / Math.PI;
+  if (deg > 195) deg -= 360;
+  if (deg < -165 && deg >= -180) deg += 360;
+  const a = SCORING_AREAS.find((s) => deg >= s.from && deg < s.to);
+  return a ? a.id : Math.abs(deg) > 165 ? 'behind' : 'straight';
+}
+
+// Fill a template, keeping fielders already on the field and putting the keeper behind the stumps.
+export function applyFieldTemplate(setup, template, keeperName) {
+  const before = setup.positions || {};
+  const all = fieldPositions(setup);
+  const onField = all.filter((p) => before[p.id]?.active && before[p.id].player?.trim()).map((p) => ({ pos: p.id, name: before[p.id].player.trim() }));
+  const next = {};
+  template.positions.forEach((pid) => {
+    const kept = onField.find((x) => x.pos === pid);
+    next[pid] = { active: true, player: kept ? kept.name : '' };
+  });
+  if (next.wk && !next.wk.player && keeperName) next.wk.player = keeperName;
+  const used = new Set(Object.values(next).map((v) => v.player.toLowerCase()).filter(Boolean));
+  const spare = onField.filter((x) => !used.has(x.name.toLowerCase()));
+  template.positions.forEach((pid) => {
+    if (!next[pid].player && spare.length) next[pid].player = spare.shift().name;
+  });
+  return next;
+}

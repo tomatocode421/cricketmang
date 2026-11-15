@@ -40,13 +40,13 @@ export default function Players() {
 
   return (
     <>
-      <PageHeader title="Player Management" subtitle="Your 11-player team — enter each name once and it is used everywhere" />
+      <PageHeader title="Player Management" subtitle="Your 12-player squad — pick the playing XI for each match in Current Match" />
       <div className="content">
         <div className="grid split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 300px)', alignItems: 'start' }}>
           <section className="panel">
             <div className="panel-head">
               <h2>Team roster</h2>
-              <span className="muted small">{data.players.filter((p) => p.name.trim()).length} of 11 named</span>
+              <span className="muted small">{data.players.filter((p) => p.name.trim()).length} of 12 named</span>
             </div>
             <div className="roster-head">
               <span>#</span>
