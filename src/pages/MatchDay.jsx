@@ -35,13 +35,13 @@ import { openExternal } from '../lib/net.js';
 import { analyseMatch } from '../lib/tactics.js';
 
 const TABS = [
-  { id: 'info', label: 'Match Information', icon: CalendarDays },
-  { id: 'weather', label: 'Weather Forecast', icon: CloudSun },
-  { id: 'ground', label: 'Ground & Pitch', icon: Sprout },
-  { id: 'conditions', label: 'Playing Conditions', icon: Gauge },
-  { id: 'strategy', label: 'Tactical Recommendations', icon: Swords },
-  { id: 'checklist', label: 'Checklist', icon: ListChecks },
-  { id: 'notes', label: 'Personal Notes', icon: NotebookPen },
+  { id: 'info', label: 'Match Information', short: 'Info', icon: CalendarDays },
+  { id: 'weather', label: 'Weather Forecast', short: 'Weather', icon: CloudSun },
+  { id: 'ground', label: 'Ground & Pitch', short: 'Pitch', icon: Sprout },
+  { id: 'conditions', label: 'Playing Conditions', short: 'Conditions', icon: Gauge },
+  { id: 'strategy', label: 'Tactical Recommendations', short: 'Tactics', icon: Swords },
+  { id: 'checklist', label: 'Checklist', short: 'Checklist', icon: ListChecks },
+  { id: 'notes', label: 'Personal Notes', short: 'Notes', icon: NotebookPen },
 ];
 
 export default function MatchDay() {
@@ -89,7 +89,8 @@ export default function MatchDay() {
         <div className="md-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} className={`md-tab ${tab === t.id ? 'on' : ''}`} onClick={() => setTab(t.id)}>
-              <t.icon size={15} /> {t.label}
+              <t.icon size={15} /> <span className="tab-full">{t.label}</span>
+              <span className="tab-short">{t.short}</span>
             </button>
           ))}
         </div>
@@ -150,7 +151,7 @@ function InfoTab({ m, updateMatch, flush, setTab }) {
           <Field label="Additional information">
             <textarea className="textarea" value={m.info} onChange={(e) => set('info', e.target.value)} placeholder="Anything else you want to record about the game" />
           </Field>
-          <div className="row">
+          <div className="row row-wrap">
             <button
               className="btn primary"
               onClick={async () => {

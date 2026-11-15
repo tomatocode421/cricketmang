@@ -503,3 +503,13 @@ button.activity-item:last-child { border-bottom: none; }
 @media (hover: none) {
   .nav-kbd { display: none; }
 }
+
+.tab-short { display: none; }
+@media (max-width: 820px) {
+  /* Tabs: short names, wrapped so every tab is visible */
+  .md-tabs { flex-wrap: wrap; gap: 6px; border-bottom: none; overflow: visible; margin-bottom: 16px; }
+  .md-tabs .md-tab { border: 1px solid var(--border-strong); border-radius: 999px; padding: 7px 12px; font-size: 13.5px; background: var(--panel); }
+  .md-tabs .md-tab.on { border-color: var(--green-border); background: var(--green-bg); color: var(--green-soft); }
+  .tab-full { display: none; }
+  .tab-short { display: inline; }
+}
