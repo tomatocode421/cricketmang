@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowRight, CheckCircle2, CircleDot, CloudSun, Crosshair, Flag, History, ListOrdered, NotebookPen, Pencil, Plus, Save, Repeat } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleDot, CloudSun, Crosshair, Flag, History, ListOrdered, NotebookPen, Pencil, Plus, Save, Repeat, Share2 } from 'lucide-react';
+import TeamSheetModal from '../components/TeamSheetModal.jsx';
 import { useStore, logActivity } from '../store.jsx';
 import { Field, PageHeader, Select, SourceTag, useDialog, useNav, useToast } from '../components/ui.jsx';
 import NoMatch from '../components/NoMatch.jsx';
@@ -63,7 +64,8 @@ export function MatchDetailsForm({ m, set, setMd }) {
 
 export default function CurrentMatch() {
   const { data, match: m, updateMatch, update, flush, isEditingPrevious, setWorkingMatchId } = useStore();
-  const { go, openNewMatch } = useNav();
+  const { go, openNewMatch, params } = useNav();
+  const [sheetOpen, setSheetOpen] = useState(!!params.share);
   const { confirm, prompt } = useDialog();
   const toast = useToast();
   const [editing, setEditing] = useState(() => !!m && !m.name && !m.opposition);
@@ -117,7 +119,7 @@ export default function CurrentMatch() {
     toast('Match saved');
   };
 
-  const a = analyseMatch(m);
+  const a = analyseMatch(m, data.players);
   const fmt = formatInfo(m);
   const setup = m.fielding.setups.find((s) => s.id === m.fielding.activeSetupId) || m.fielding.setups[0];
   const fs = fieldingSummary(setup);
@@ -138,6 +140,9 @@ export default function CurrentMatch() {
   return (
     <>
       <PageHeader title="Current Match" subtitle={`${matchTitle(m)}${m.date ? ' · ' + formatDate(m.date) : ''}${m.status === 'Finished' ? ' · Finished' : ''}`}>
+        <button className="btn" onClick={() => setSheetOpen(true)}>
+          <Share2 size={15} /> Share team sheet
+        </button>
         <button className="btn" onClick={() => go('history')}>
           <History size={15} /> View Match History
         </button>
@@ -237,6 +242,7 @@ export default function CurrentMatch() {
           {!isEditingPrevious && <OtherMatches />}
         </div>
       </div>
+      {sheetOpen && <TeamSheetModal match={m} onClose={() => setSheetOpen(false)} />}
     </>
   );
 }

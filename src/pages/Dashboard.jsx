@@ -16,7 +16,7 @@ const QUICK = [
 const ACT_ICONS = { notes: NotebookPen, fielding: Crosshair, tip: Lightbulb, match: Trophy, batting: ListOrdered, bowling: CircleDot, matchday: CloudSun, players: Users };
 
 export default function Dashboard() {
-  const { data, setWorkingMatchId } = useStore();
+  const { data, setWorkingMatchId, update } = useStore();
   const { go, openNewMatch } = useNav();
   const current = data.matches.find((m) => m.id === data.currentMatchId);
   const m = current || null;
@@ -44,6 +44,7 @@ export default function Dashboard() {
       </PageHeader>
       <div className="content">
         <div className="stack" style={{ gap: 20 }}>
+          <GettingStarted data={data} current={m} go={go} openNewMatch={openNewMatch} hide={() => update((d) => (d.hideGettingStarted = true))} />
           <div className="hero">
             <div>
               <h2>Welcome back</h2>
@@ -212,5 +213,41 @@ export default function Dashboard() {
         </div>
       </div>
     </>
+  );
+}
+
+function GettingStarted({ data, current, go, openNewMatch, hide }) {
+  if (data.hideGettingStarted) return null;
+  const setup = current?.fielding.setups.find((x) => x.id === current.fielding.activeSetupId) || current?.fielding.setups[0];
+  const steps = [
+    { label: 'Name your 11 players', done: data.players.every((p) => p.name.trim() && !/^Player \d+$/.test(p.name.trim())), run: () => go('players') },
+    { label: 'Add bowling styles and your keeper', done: data.players.some((p) => p.bowling) && data.players.some((p) => p.role === 'Wicketkeeper'), run: () => go('players') },
+    { label: 'Create your next match', done: data.matches.length > 0, run: openNewMatch },
+    { label: 'Place your fielders', done: !!setup && fieldingSummary(setup).count > 0, run: () => (current ? go('fielding') : openNewMatch()) },
+    { label: 'Check the Match Day forecast', done: current?.matchDay.weather?.status === 'ok', run: () => (current ? go('matchday', { tab: 'weather' }) : openNewMatch()) },
+  ];
+  const done = steps.filter((x) => x.done).length;
+  if (done === steps.length) return null;
+  return (
+    <section className="panel getting-started">
+      <div className="panel-head">
+        <h2>Getting started</h2>
+        <span className="muted small">
+          {done} of {steps.length} done
+        </span>
+        <span className="spacer" />
+        <button className="btn sm ghost" onClick={hide}>
+          Hide
+        </button>
+      </div>
+      <div className="gs-steps">
+        {steps.map((x, i) => (
+          <button key={x.label} className={`gs-step ${x.done ? 'done' : ''}`} onClick={x.run}>
+            <span className="gs-num">{x.done ? '\u2713' : i + 1}</span>
+            <span>{x.label}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

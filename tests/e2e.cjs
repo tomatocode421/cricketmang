@@ -69,6 +69,12 @@ async function shot(page, name) {
   await style.evaluate((el) => el.remove());
 }
 
+// Pick a player from a dropdown by name (option labels also show styles and positions).
+async function pick(page, selector, name) {
+  const value = await page.locator(`${selector} option`).evaluateAll((opts, n) => opts.find((o) => o.textContent.trim().startsWith(n))?.value, name);
+  await page.selectOption(selector, value);
+}
+
 async function nav(page, label) {
   await page.locator('.sidebar .nav-item', { hasText: label }).first().click();
   await page.waitForTimeout(120);
@@ -112,8 +118,16 @@ async function nav(page, label) {
   const NAMES = ['James Carter', 'Liam Patel', 'Noah Singh', 'Oliver Brown', 'Jack Wilson', 'Ethan Nguyen', 'Lucas Taylor', 'Mason Lee', 'Henry Clarke', 'Sam Ahmed', 'Tom Riley'];
   for (let i = 0; i < 11; i++) await page.fill(`[aria-label="Player ${i + 1} name"]`, NAMES[i]);
   check((await page.inputValue('[aria-label="Player 11 name"]')) === 'Tom Riley', '11 player names entered');
+  // Roles and styles
+  await page.selectOption('[aria-label="Player 9 role"]', 'Wicketkeeper');
+  for (const [i, style] of [[4, 'Fast'], [5, 'Medium pace'], [6, 'Fast'], [10, 'Off-spin'], [11, 'Leg-spin']]) await page.selectOption(`[aria-label="Player ${i} bowling style"]`, style);
+  await page.locator('[aria-label="Player 2 batting hand"] button', { hasText: 'LHB' }).click();
+  check((await page.locator('.squad-line', { hasText: 'Pace' }).innerText()).includes('Oliver Brown, Jack Wilson, Ethan Nguyen'), 'squad summary lists pace bowlers');
+  check((await page.locator('.squad-line', { hasText: 'Keeper' }).innerText()).includes('Henry Clarke'), 'keeper recorded');
   await shot(page, '09-players');
 
+  await nav(page, 'Dashboard');
+  check(await page.locator('.getting-started').count() === 1, 'getting-started guide shown before the first match');
   console.log('Create match');
   await nav(page, 'Dashboard');
   await page.click('.topbar >> text=New Match');
@@ -151,7 +165,7 @@ async function nav(page, label) {
     await page.fill(`[aria-label="${pos} player name"]`, player);
   }
   check((await page.locator('svg .marker-label', { hasText: 'James Carter' }).count()) === 1, 'ticked position shows player name on field');
-  check((await page.locator('.field-toolbar .tag').innerText()).startsWith('10 positions'), '10 positions counted');
+  check((await page.locator('.field-toolbar .tag').first().innerText()).startsWith('10 positions'), '10 positions counted');
   await page.fill('[aria-label="First Slip player name"]', 'John');
   check((await page.locator('svg .marker-label', { hasText: 'John' }).count()) === 1, 'field updates immediately when name changes');
   await page.fill('[aria-label="First Slip player name"]', 'James Carter');
@@ -166,7 +180,7 @@ async function nav(page, label) {
   await page.click('.setup-actions >> text=New');
   await page.fill('.modal input', 'Death Overs Field');
   await page.click('.modal-foot >> button:has-text("Create")');
-  check((await page.locator('.field-toolbar .tag').innerText()).startsWith('0 positions'), 'new setup starts empty');
+  check((await page.locator('.field-toolbar .tag').first().innerText()).startsWith('0 positions'), 'new setup starts empty');
   for (const pos of ['Long-off', 'Long-on', 'Deep Mid-wicket', 'Deep Square Leg', 'Third Man']) await page.check(`[aria-label="Select ${pos}"]`);
   await page.fill('[aria-label="Long-off player name"]', 'Jack');
   await page.selectOption('[aria-label="Fielding setup"]', { index: 0 });
@@ -185,6 +199,25 @@ async function nav(page, label) {
   check((await page.locator('[aria-label="Fielding setup"] option').count()) === 2, 'delete removes setup after confirmation');
   await page.selectOption('[aria-label="Fielding setup"]', { index: 0 });
 
+  // Templates and left-handed batter
+  await page.click('.setup-actions >> text=New');
+  await page.fill('.modal input', 'Template test');
+  await page.click('.modal-foot >> button:has-text("Create")');
+  await page.selectOption('[aria-label="Apply a field template"]', 'death');
+  check((await page.locator('.field-toolbar .tag').first().innerText()).startsWith('10 positions'), 'template places 10 fielders');
+  check((await page.locator('.field-toolbar .tag', { hasText: 'out' }).innerText()).includes('5 out'), 'shows 5 fielders outside the circle for death overs');
+  check((await page.inputValue('[aria-label="Wicketkeeper player name"]')) === 'Henry Clarke', 'template puts the team keeper behind the stumps');
+  const xOf = () => page.locator('svg .marker', { has: page.locator('title', { hasText: 'Long-off' }) }).locator('circle').last().getAttribute('cx');
+  const before = Number(await xOf());
+  await page.click('.field-toolbar >> text=Left-hander');
+  const after = Number(await xOf());
+  check(before < 500 && after > 500, `left-hander mirrors the field (Long-off x ${before} → ${after})`);
+  await shot(page, '04c-fielding-template-left');
+  await page.click('.field-toolbar >> text=Right-hander');
+  await page.click('.setup-actions >> text=Delete');
+  await page.click('.modal >> text=Delete setup');
+  await page.selectOption('[aria-label="Fielding setup"]', { index: 0 });
+
   // Player rename propagates
   await nav(page, 'Player Management');
   await page.fill('[aria-label="Player 1 name"]', 'Jimmy Carter');
@@ -195,14 +228,14 @@ async function nav(page, label) {
 
   console.log('Batting');
   await nav(page, 'Batting Order');
-  const firstBatter = () => page.locator('[aria-label="1st batter"] option:checked').innerText();
+  const firstBatter = () => page.locator('[aria-label="1st batter"] option:checked').innerText().then((t) => t.split(' · ')[0].trim());
   check((await firstBatter()) === 'James Carter', 'batting defaults to roster order');
-  await page.selectOption('[aria-label="1st batter"]', { label: 'Liam Patel  (bats 2nd)' });
+  await pick(page, '[aria-label="1st batter"]', 'Liam Patel');
   check((await firstBatter()) === 'Liam Patel', 'dropdown assigns player');
-  check((await page.locator('[aria-label="2nd batter"] option:checked').innerText()) === 'James Carter', 'duplicate selection swaps the players');
+  check((await page.locator('[aria-label="2nd batter"] option:checked').innerText().then((t) => t.split(' · ')[0].trim())) === 'James Carter', 'duplicate selection swaps the players');
   await page.fill('[aria-label="1st batter notes"]', 'Strong opening batter');
   await page.selectOption('[aria-label="Move 1st batter to position"]', '3');
-  check((await page.locator('[aria-label="4th batter"] option:checked').innerText()) === 'Liam Patel', 'move-to dropdown repositions batter');
+  check((await page.locator('[aria-label="4th batter"] option:checked').innerText().then((t) => t.split(' · ')[0].trim())) === 'Liam Patel', 'move-to dropdown repositions batter');
   check((await page.inputValue('[aria-label="4th batter notes"]')) === 'Strong opening batter', 'notes move with the player');
   // drag & drop: 4th back to 1st
   const rows = page.locator('.lineup-row');
@@ -216,7 +249,7 @@ async function nav(page, label) {
   await rows.nth(0).dispatchEvent('drop', { dataTransfer: dt, clientX: box.x + 50, clientY: box.y + 3 });
   await page.mouse.up();
   check((await firstBatter()) === 'Liam Patel', 'drag and drop moves batter to 1st');
-  check((await page.locator('[aria-label="2nd batter"] option:checked').innerText()) === 'James Carter', 'other batters shift down');
+  check((await page.locator('[aria-label="2nd batter"] option:checked').innerText().then((t) => t.split(' · ')[0].trim())) === 'James Carter', 'other batters shift down');
   await page.fill('[aria-label="2nd batter notes"]', 'Good at rotating the strike');
   await shot(page, '05-batting');
 
@@ -225,7 +258,7 @@ async function nav(page, label) {
   const bowlers = [['Oliver Brown', 4], ['Jack Wilson', 4], ['Ethan Nguyen', 4], ['Sam Ahmed', 4], ['Tom Riley', 3], ['Mason Lee', 3]];
   for (let i = 0; i < bowlers.length; i++) {
     const ord = ['1st', '2nd', '3rd', '4th', '5th', '6th'][i];
-    await page.selectOption(`[aria-label="${ord} bowler"]`, { label: bowlers[i][0] });
+    await pick(page, `[aria-label="${ord} bowler"]`, bowlers[i][0]);
     await page.fill(`[aria-label="${ord} bowler planned overs"]`, String(bowlers[i][1]));
   }
   check(await page.locator('.callout', { hasText: 'Too many overs planned' }).count() === 1, 'warning when planned overs exceed 20');
@@ -237,6 +270,16 @@ async function nav(page, label) {
   check(await page.locator('.callout', { hasText: 'All 20 overs are planned' }).count() === 1, 'confirms when overs total 20');
   await page.fill('[aria-label="1st bowler notes"]', 'Attack the stumps');
   await page.fill('[aria-label="4th bowler notes"]', 'Save slower balls for later overs');
+
+  console.log('Team sheet');
+  await nav(page, 'Current Match');
+  await page.click('.topbar >> text=Share team sheet');
+  const sheet = await page.inputValue('[aria-label="Team sheet text"]');
+  check(sheet.includes('BATTING ORDER') && sheet.includes('1. Liam Patel'), 'team sheet lists the batting order');
+  check(sheet.includes('Oliver Brown – 4 overs'), 'team sheet lists bowlers and overs');
+  check(sheet.includes('Wicketkeeper: Henry Clarke'), 'team sheet lists the field');
+  await shot(page, '02b-team-sheet');
+  await page.click('.modal-foot >> text=Close');
 
   console.log('Match Day');
   await nav(page, 'Match Day');
@@ -278,6 +321,7 @@ async function nav(page, label) {
   const toss = await page.locator('text=Consider Bowling First').count();
   check(toss >= 1, 'damp seaming pitch + rain suggests considering bowling first');
   check(await page.locator('text=Lean towards pace').count() >= 1, 'pace recommended on damp seaming pitch');
+  check(await page.locator('text=Your pace options: Oliver Brown, Jack Wilson, Ethan Nguyen').count() >= 1, 'bowling advice names your pace bowlers');
   await shot(page, '06e-matchday-strategy');
   await page.click('.md-tab:has-text("Checklist")');
   check(await page.isChecked('.check-item:has-text("Check the weather forecast") input'), 'weather checklist item ticked after retrieval');
@@ -395,7 +439,7 @@ async function nav(page, label) {
   await shot(page, '11-new-match-dialog');
   await page.click('.modal >> text=Create match');
   await nav(page, 'Batting Order');
-  check((await page.locator('[aria-label="1st batter"] option:checked').innerText()) === 'Liam Patel', 'new match copied previous batting order');
+  check((await page.locator('[aria-label="1st batter"] option:checked').innerText().then((t) => t.split(' · ')[0].trim())) === 'Liam Patel', 'new match copied previous batting order');
   await nav(page, 'Fielding Positions');
   check((await page.inputValue('[aria-label="Wicketkeeper player name"]')) === 'Henry Clarke', 'new match copied fielding setup');
   await page.fill('[aria-label="Wicketkeeper player name"]', 'Tom Riley');

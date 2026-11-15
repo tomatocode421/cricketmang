@@ -333,7 +333,7 @@ export function MatchReview({ m }) {
             </div>
           </div>
           <div className="field-svg-wrap review-field">
-            <CricketField positions={setup.positions} showInactive={false} />
+            <CricketField positions={setup.positions} showInactive={false} leftHanded={!!setup.leftHanded} />
           </div>
         </div>
       )}

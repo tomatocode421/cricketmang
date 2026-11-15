@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Search, Plus, History, Check, CornerDownLeft, HardDriveDownload, LayoutGrid, X } from 'lucide-react';
+import { ChevronDown, Search, Plus, History, Check, CornerDownLeft, HardDriveDownload, LayoutGrid, Share2, X } from 'lucide-react';
 import { useStore } from '../store.jsx';
 import { useNav } from './ui.jsx';
 import { NAV_ITEMS } from './Sidebar.jsx';
@@ -30,6 +30,7 @@ export function CommandPalette({ onClose }) {
       ...NAV_ITEMS.map((n, i) => ({ group: 'Go to', label: n.label, icon: n.icon, hint: i < 9 ? `${MOD}${i + 1}` : '', run: () => go(n.id) })),
       ...MATCH_DAY_TABS.map(([tab, label]) => ({ group: 'Match Day', label, run: () => go('matchday', { tab }) })),
       { group: 'Actions', label: 'New match', icon: Plus, hint: `${MOD}N`, run: openNewMatch },
+      { group: 'Actions', label: 'Share team sheet', icon: Share2, run: () => go('match', { share: true }) },
       { group: 'Actions', label: 'Add a tip or improvement', icon: Plus, run: () => go('tips', { add: true }) },
       { group: 'Actions', label: 'Backup & Restore', icon: HardDriveDownload, run: openBackup },
       ...[...data.matches]

@@ -92,7 +92,8 @@ export default function Batting() {
                   placeholder="— Select player —"
                   options={data.players.map((p) => {
                     const at = m.batting.findIndex((r) => r.playerId === p.id);
-                    return { value: p.id, label: `${p.name || 'Unnamed player'}${at >= 0 && at !== i ? `  (bats ${ordinal(at + 1)})` : ''}` };
+                    const tag = [p.role === 'Wicketkeeper' && 'WK', p.bats === 'Left' && 'LHB'].filter(Boolean).join(', ');
+                    return { value: p.id, label: `${p.name || 'Unnamed player'}${tag ? ` · ${tag}` : ''}${at >= 0 && at !== i ? `  (bats ${ordinal(at + 1)})` : ''}` };
                   })}
                 />
                 </div>

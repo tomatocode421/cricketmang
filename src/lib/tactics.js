@@ -2,7 +2,7 @@
 // (weather, pitch, ground, format, observations) into explained considerations.
 // Everything returned is advice to consider, never a guaranteed outcome.
 import { rainLevel, compass } from './weather.js';
-import { formatInfo } from '../data/model.js';
+import { formatInfo, isPace, isSpin, playerName } from '../data/model.js';
 import { AREA_PROTECTION, POSITION_BY_ID, SCORING_AREA_BY_ID } from '../data/positions.js';
 
 const known = (v) => v && v !== 'Unknown';
@@ -10,7 +10,7 @@ const yesish = (v) => v === 'Yes' || v === 'Somewhat';
 const levelOf = (score) => (score >= 65 ? 'Favourable' : score >= 45 ? 'Moderate' : 'Less favourable');
 const clamp = (n) => Math.max(5, Math.min(95, n));
 
-export function analyseMatch(match) {
+export function analyseMatch(match, players = []) {
   const md = match?.matchDay || {};
   const pitch = md.pitch || {};
   const wx = md.weather?.status === 'ok' ? md.weather.summary : null;
@@ -201,7 +201,30 @@ export function analyseMatch(match) {
   else if (spin - pace >= 15) balance = 'Lean towards spin. Consider including an extra spinner and bringing spin on earlier than usual.';
   else balance = 'A balanced attack. Start with pace and introduce spin once you have seen how the surface is playing.';
 
+  // Personalise with the squad's actual bowlers (roster at the time for finished matches).
+  const roster = match?.rosterSnapshot || players || [];
+  const paceNames = roster.filter((p) => isPace(p.bowling) && p.name?.trim()).map((p) => p.name);
+  const spinNames = roster.filter((p) => isSpin(p.bowling) && p.name?.trim()).map((p) => p.name);
+  const squadNotes = [];
+  if (roster.some((p) => p.bowling)) {
+    if (paceNames.length) squadNotes.push(`Your pace options: ${paceNames.join(', ')}.`);
+    if (spinNames.length) squadNotes.push(`Your spin options: ${spinNames.join(', ')}.`);
+    if (enoughForBowling && spin - pace >= 15 && !spinNames.length) squadNotes.push('Conditions may suit spin, but no spinners are listed in your team. Slower, cutting deliveries from your seamers could do a similar job.');
+    if (enoughForBowling && pace - spin >= 15 && !paceNames.length) squadNotes.push('Conditions may suit seam, but no pace bowlers are listed in your team.');
+    const openers = (match.bowling || []).filter((r) => r.playerId).slice(0, 2);
+    const byId = (id) => roster.find((p) => p.id === id);
+    if (enoughForBowling && pace - spin >= 15 && openers.length === 2 && openers.every((r) => isSpin(byId(r.playerId)?.bowling))) {
+      squadNotes.push(`Your planned opening bowlers (${openers.map((r) => playerName(roster, match, r.playerId)).join(' and ')}) are both spinners, while conditions may favour seam early.`);
+    }
+    if (enoughForBowling && spin - pace >= 15 && spinNames.length && !(match.bowling || []).some((r) => spinNames.includes(playerName(roster, match, r.playerId)))) {
+      squadNotes.push(`None of your spinners (${spinNames.join(', ')}) are in the bowling plan yet.`);
+    }
+  } else {
+    squadNotes.push('Add bowling styles in Player Management to see which of your players suit these conditions.');
+  }
+
   const bowling = {
+    squad: { pace: paceNames, spin: spinNames, notes: squadNotes },
     enough: enoughForBowling,
     pace: { score: pace, level: levelOf(pace), reasons: paceWhy.length ? paceWhy : ['No specific information favours or counts against pace yet.'] },
     spin: { score: spin, level: levelOf(spin), reasons: spinWhy.length ? spinWhy : ['No specific information favours or counts against spin yet.'] },

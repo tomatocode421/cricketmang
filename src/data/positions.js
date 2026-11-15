@@ -85,3 +85,13 @@ export const AREA_PROTECTION = {
   squareleg: ['squareleg', 'deepsquareleg', 'shortleg'],
   midwicket: ['midwicket', 'deepmidwicket', 'midon'],
 };
+
+// One-tap field templates (10 fielders + the bowler). "outer" counts fielders outside the 30-yard circle.
+export const FIELD_TEMPLATES = [
+  { id: 'balanced', name: 'Balanced', note: 'A standard field for most situations.', positions: ['wk', 'slip1', 'point', 'cover', 'midoff', 'midon', 'midwicket', 'squareleg', 'fineleg', 'thirdman'] },
+  { id: 'newball', name: 'Attacking new ball', note: 'Three slips and a gully for early movement.', positions: ['wk', 'slip1', 'slip2', 'slip3', 'gully', 'point', 'cover', 'midoff', 'midon', 'fineleg'] },
+  { id: 'spin', name: 'Spin attack', note: 'Close catchers either side of the bat.', positions: ['wk', 'slip1', 'shortleg', 'sillypoint', 'cover', 'midoff', 'midon', 'midwicket', 'squareleg', 'longon'] },
+  { id: 'powerplay', name: 'Powerplay (2 out)', note: 'Only two fielders outside the circle.', positions: ['wk', 'slip1', 'point', 'cover', 'midoff', 'midon', 'midwicket', 'squareleg', 'thirdman', 'fineleg'] },
+  { id: 'death', name: 'Death overs (5 out)', note: 'Protect the boundary in the last overs.', positions: ['wk', 'point', 'cover', 'midoff', 'shortfineleg', 'deeppoint', 'longoff', 'longon', 'deepmidwicket', 'deepsquareleg'] },
+  { id: 'defensive', name: 'Defensive', note: 'Save runs with sweepers on both sides.', positions: ['wk', 'point', 'cover', 'midoff', 'midon', 'deeppoint', 'deepcover', 'longon', 'deepmidwicket', 'deepfineleg'] },
+];

@@ -124,8 +124,8 @@ function serve() {
   console.log('Batting');
   await tab('Batting');
   check(!(await page.locator('.drag-handle').first().isVisible()), 'drag handles replaced on touch screens');
-  const first = () => page.locator('.lineup-row').nth(0).locator('.c-player option:checked').innerText();
-  const second = () => page.locator('.lineup-row').nth(1).locator('.c-player option:checked').innerText();
+  const first = () => page.locator('.lineup-row').nth(0).locator('.c-player option:checked').innerText().then((t) => t.split(' · ')[0].trim());
+  const second = () => page.locator('.lineup-row').nth(1).locator('.c-player option:checked').innerText().then((t) => t.split(' · ')[0].trim());
   check((await first()) === 'James Carter', 'roster order to start');
   await page.locator('.lineup-row').nth(0).locator('[aria-label="Move down"]').tap();
   check((await first()) === 'Liam Patel' && (await second()) === 'James Carter', 'down arrow moves batter to 2nd');

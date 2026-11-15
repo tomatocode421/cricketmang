@@ -78,6 +78,19 @@ export const PITCH_BEHAVIOUR = [
   { id: 'flat', label: 'Flat and good for batting' },
 ];
 
+export const PLAYER_ROLES = ['Batter', 'Bowler', 'All-rounder', 'Wicketkeeper'];
+export const BOWLING_STYLES = ['Fast', 'Medium pace', 'Off-spin', 'Leg-spin', 'Left-arm spin'];
+export const isPace = (style) => style === 'Fast' || style === 'Medium pace';
+export const isSpin = (style) => /spin/i.test(style || '');
+export const playerTag = (p) => {
+  if (!p) return '';
+  const bits = [];
+  if (p.role === 'Wicketkeeper') bits.push('WK');
+  if (p.bowling) bits.push(p.bowling);
+  if (p.bats === 'Left') bits.push('LHB');
+  return bits.join(', ');
+};
+
 export const defaultPlayers = () =>
   Array.from({ length: 11 }, (_, i) => ({ id: uid('pl'), name: `Player ${i + 1}` }));
 
@@ -164,7 +177,7 @@ export function normaliseData(raw) {
   const data = { ...base, ...raw };
   if (!Array.isArray(data.players) || data.players.length === 0) data.players = base.players;
   while (data.players.length < 11) data.players.push({ id: uid('pl'), name: `Player ${data.players.length + 1}` });
-  data.players = data.players.slice(0, 11);
+  data.players = data.players.slice(0, 11).map((p) => ({ role: '', bowling: '', bats: 'Right', ...p }));
   data.matches = Array.isArray(data.matches) ? data.matches.map((m) => normaliseMatch(m, data.players)) : [];
   data.tips = Array.isArray(data.tips) ? data.tips : [];
   data.activity = Array.isArray(data.activity) ? data.activity : [];
@@ -254,3 +267,35 @@ export const fieldingSummary = (setup) => {
   const active = Object.entries(setup?.positions || {}).filter(([, v]) => v.active);
   return { count: active.length, named: active.filter(([, v]) => v.player?.trim()).length };
 };
+
+// Plain-text team sheet for sending to the team (group chat, email, notes).
+export function teamSheet(match, players, { POSITIONS }) {
+  const name = (id) => playerName(players, match, id);
+  const fmt = formatInfo(match);
+  const md = match.matchDay || {};
+  const lines = [];
+  const when = [match.date && formatDate(match.date), match.startTime && `start ${match.startTime}`].filter(Boolean).join(', ');
+  const where = [md.groundName, md.field].filter(Boolean).join(' – ');
+  lines.push(`🏏 ${matchTitle(match)}${match.opposition && match.name ? ` vs ${match.opposition}` : ''}`);
+  if (when) lines.push(`📅 ${when}`);
+  if (where) lines.push(`📍 ${where}${md.groundLocation ? `, ${md.groundLocation}` : ''}`);
+  if (fmt.id) lines.push(`Format: ${fmt.label}`);
+  const bat = match.batting.filter((r) => r.playerId);
+  if (bat.length) {
+    lines.push('', 'BATTING ORDER');
+    match.batting.forEach((r, i) => r.playerId && lines.push(`${i + 1}. ${name(r.playerId)}`));
+  }
+  const bowl = match.bowling.filter((r) => r.playerId);
+  if (bowl.length) {
+    lines.push('', 'BOWLING');
+    bowl.forEach((r, i) => lines.push(`${i + 1}. ${name(r.playerId)}${Number(r.overs) ? ` – ${r.overs} over${Number(r.overs) === 1 ? '' : 's'}` : ''}`));
+  }
+  const setup = match.fielding.setups.find((s) => s.id === match.fielding.activeSetupId) || match.fielding.setups[0];
+  const placed = POSITIONS.filter((p) => setup?.positions[p.id]?.active);
+  if (placed.length) {
+    lines.push('', `FIELD (${setup.name}${setup.leftHanded ? ', left-handed batter' : ''})`);
+    placed.forEach((p) => lines.push(`${p.name}: ${setup.positions[p.id].player || '–'}`));
+  }
+  if (match.info?.trim()) lines.push('', match.info.trim());
+  return lines.join('\n');
+}

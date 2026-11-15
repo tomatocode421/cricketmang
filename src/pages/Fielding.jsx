@@ -4,7 +4,7 @@ import { useStore, logActivity } from '../store.jsx';
 import { Modal, PageHeader, Select, SourceTag, useDialog, useNav, useToast } from '../components/ui.jsx';
 import NoMatch from '../components/NoMatch.jsx';
 import CricketField from '../components/CricketField.jsx';
-import { POSITIONS, POSITION_GROUPS, POSITION_BY_ID } from '../data/positions.js';
+import { FIELD_TEMPLATES, POSITIONS, POSITION_GROUPS, POSITION_BY_ID } from '../data/positions.js';
 import { fieldingSummary, matchTitle, newFieldingSetup, uid } from '../data/model.js';
 import { analyseMatch } from '../lib/tactics.js';
 
@@ -19,7 +19,7 @@ export default function Fielding() {
   const [sidePopup, setSidePopup] = useState(false);
   const rowRefs = useRef({});
 
-  const analysis = useMemo(() => (m ? analyseMatch(m) : null), [m]);
+  const analysis = useMemo(() => (m ? analyseMatch(m, data.players) : null), [m, data.players]);
   if (!m)
     return (
       <>
@@ -34,6 +34,8 @@ export default function Fielding() {
   const setup = setups.find((s) => s.id === m.fielding.activeSetupId) || setups[0];
   const positions = setup.positions;
   const summary = fieldingSummary(setup);
+  const outsideCount = POSITIONS.filter((p) => p.group === 'outer' && positions[p.id]?.active).length;
+  const insideCount = summary.count - outsideCount;
 
   const editSetup = (recipe, activity = true) =>
     updateMatch(m.id, (mm, draft) => {
@@ -123,6 +125,31 @@ export default function Fielding() {
     await flush();
     toast(`"${setup.name}" saved`);
   };
+  const applyTemplate = (id) => {
+    const tpl = FIELD_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    const before = structuredClone(setup.positions);
+    // Players already on the field stay on it: keep anyone whose position is in the template,
+    // move the others into the template's empty positions, and put the team's keeper behind the stumps.
+    const onField = POSITIONS.filter((p) => before[p.id]?.active && before[p.id].player?.trim()).map((p) => ({ pos: p.id, name: before[p.id].player.trim() }));
+    const next = {};
+    tpl.positions.forEach((pid) => {
+      const kept = onField.find((x) => x.pos === pid);
+      next[pid] = { active: true, player: kept ? kept.name : '' };
+    });
+    const keeper = data.players.find((p) => p.role === 'Wicketkeeper' && p.name.trim())?.name;
+    if (!next.wk.player && keeper) next.wk.player = keeper;
+    const used = new Set(Object.values(next).map((v) => v.player.toLowerCase()).filter(Boolean));
+    const spare = onField.filter((x) => !used.has(x.name.toLowerCase()));
+    tpl.positions.forEach((pid) => {
+      if (!next[pid].player && spare.length) next[pid].player = spare.shift().name;
+    });
+    editSetup((s) => (s.positions = next));
+    toast(`Applied "${tpl.name}"`, { action: { label: 'Undo', run: () => updateMatch(m.id, (mm) => { const s = mm.fielding.setups.find((x) => x.id === setup.id); if (s) s.positions = before; }) } });
+  };
+
+  const setLeftHanded = (left) => editSetup((s) => (s.leftHanded = left));
+
   const clearAll = async () => {
     const ok = await confirm({ title: 'Clear all positions?', message: `Untick every position in "${setup.name}" and clear the names.`, confirmLabel: 'Clear all', danger: true });
     if (ok) editSetup((s) => (s.positions = {}));
@@ -286,8 +313,27 @@ export default function Fielding() {
               <span className={`tag ${summary.count > 10 ? 'amber' : 'green'}`}>
                 {summary.count} position{summary.count === 1 ? '' : 's'} selected · {summary.named} named
               </span>
-              <span className="faint small">Right-handed batter · off side on the left</span>
+              <span className="tag grey" title="Fielders inside / outside the 30-yard circle">
+                {insideCount} in · {outsideCount} out
+              </span>
+              <div className="seg" role="radiogroup" aria-label="Batter">
+                <button type="button" role="radio" aria-checked={!setup.leftHanded} className={!setup.leftHanded ? 'on' : ''} onClick={() => setLeftHanded(false)}>
+                  Right-hander
+                </button>
+                <button type="button" role="radio" aria-checked={!!setup.leftHanded} className={setup.leftHanded ? 'on' : ''} onClick={() => setLeftHanded(true)}>
+                  Left-hander
+                </button>
+              </div>
               <span className="spacer" />
+              <div style={{ width: 190 }}>
+                <Select
+                  aria-label="Apply a field template"
+                  value=""
+                  onChange={applyTemplate}
+                  placeholder="Apply a template…"
+                  options={FIELD_TEMPLATES.map((t) => ({ value: t.id, label: t.name }))}
+                />
+              </div>
               <button className="btn sm ghost" onClick={() => setShowInactive((v) => !v)}>
                 {showInactive ? <EyeOff size={14} /> : <Eye size={14} />} {showInactive ? 'Hide' : 'Show'} unselected positions
               </button>
@@ -303,7 +349,7 @@ export default function Fielding() {
             </div>
             <div className="field-wrap">
               <div className="field-svg-wrap">
-                <CricketField positions={positions} focusedId={focused} onMarkerClick={focusRow} showInactive={showInactive} heat={showHeat ? heat : null} />
+                <CricketField positions={positions} focusedId={focused} onMarkerClick={focusRow} showInactive={showInactive} heat={showHeat ? heat : null} leftHanded={!!setup.leftHanded} />
               </div>
               <div className="field-side">{sideContent}</div>
             </div>

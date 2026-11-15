@@ -45,10 +45,10 @@ const TABS = [
 ];
 
 export default function MatchDay() {
-  const { match: m, updateMatch, flush } = useStore();
+  const { data, match: m, updateMatch, flush } = useStore();
   const { params } = useNav();
   const [tab, setTab] = useState(params.tab || 'info');
-  const analysis = useMemo(() => (m ? analyseMatch(m) : null), [m]);
+  const analysis = useMemo(() => (m ? analyseMatch(m, data.players) : null), [m, data.players]);
 
   // Keep a saved copy of the generated recommendations with the match so they can be reviewed later.
   useEffect(() => {
@@ -202,8 +202,14 @@ function WeatherTab({ m, updateMatch, setTab }) {
     }
   };
 
+  // Fetch automatically when there is no forecast yet, when the match details changed,
+  // or when an upcoming match's forecast is more than 3 hours old.
   useEffect(() => {
-    if (!w && m.date && (md.groundLocation || md.groundName)) refresh();
+    if (!m.date || !(md.groundLocation || md.groundName)) return;
+    const q = w?.query;
+    const changed = q && (q.date !== m.date || q.location !== (md.groundLocation || md.groundName) || q.startTime !== m.startTime);
+    const old = w && Date.now() - w.fetchedAt > 3 * 3600 * 1000 && m.date >= new Date().toISOString().slice(0, 10);
+    if (!w || changed || old) refresh();
   }, []); // eslint-disable-line
 
   const stale = w?.query && (w.query.date !== m.date || w.query.location !== (md.groundLocation || md.groundName) || w.query.startTime !== m.startTime);

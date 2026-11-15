@@ -61,7 +61,10 @@ export default function CricketField({
   heat = null, // { areaId: weight }
   highlightAreas = [],
   compact = false,
+  leftHanded = false, // mirror the field for a left-handed batter
 }) {
+  const POS = leftHanded ? POSITIONS.map((p) => ({ ...p, x: FIELD.width - p.x })) : POSITIONS;
+  const wedge = (a) => (leftHanded ? wedgePath(-a.to, -a.from) : wedgePath(a.from, a.to));
   // On small screens, scale text up so names stay readable.
   const svgRef = useRef();
   const [k, setK] = useState(1);
@@ -76,12 +79,12 @@ export default function CricketField({
     return () => ro.disconnect();
   }, []);
   const small = k > 1.3;
-  const active = POSITIONS.filter((p) => positions[p.id]?.active);
+  const active = POS.filter((p) => positions[p.id]?.active);
   const markers = active.map((p) => {
     const name = positions[p.id]?.player?.trim() || '';
     return { id: p.id, x: p.x, y: p.y, name, label: name || p.name, pos: p };
   });
-  const labels = useMemo(() => layoutLabels(markers, k), [JSON.stringify(markers.map((m) => [m.id, m.label])), k]); // eslint-disable-line
+  const labels = useMemo(() => layoutLabels(markers, k), [JSON.stringify(markers.map((m) => [m.id, m.label])), k, leftHanded]); // eslint-disable-line
   const maxHeat = heat ? Math.max(1, ...Object.values(heat)) : 1;
 
   return (
@@ -123,11 +126,11 @@ export default function CricketField({
             const w = heat[a.id] || 0;
             if (!w) return null;
             const t = w / maxHeat;
-            return <path key={a.id} d={wedgePath(a.from, a.to)} fill={`rgb(${Math.round(230 + 25 * t)}, ${Math.round(170 - 110 * t)}, 60)`} opacity={0.18 + 0.42 * t} />;
+            return <path key={a.id} d={wedge(a)} fill={`rgb(${Math.round(230 + 25 * t)}, ${Math.round(170 - 110 * t)}, 60)`} opacity={0.18 + 0.42 * t} />;
           })}
         {highlightAreas.map((id) => {
           const a = SCORING_AREAS.find((x) => x.id === id);
-          return a ? <path key={'h' + id} d={wedgePath(a.from, a.to)} fill="none" stroke="#ffd27a" strokeWidth="3" strokeDasharray="10 8" /> : null;
+          return a ? <path key={'h' + id} d={wedge(a)} fill="none" stroke="#ffd27a" strokeWidth="3" strokeDasharray="10 8" /> : null;
         })}
       </g>
       {/* Boundary rope */}
@@ -138,9 +141,9 @@ export default function CricketField({
       {/* Off / leg labels */}
       {!compact && (
         <g fontSize="20" fontWeight="700" letterSpacing="4" fill="#cfe3d4" opacity="0.45">
-          <text x="14" y="36">OFF SIDE</text>
+          <text x="14" y="36">{leftHanded ? 'LEG SIDE' : 'OFF SIDE'}</text>
           <text x={FIELD.width - 14} y="36" textAnchor="end">
-            LEG SIDE
+            {leftHanded ? 'OFF SIDE' : 'LEG SIDE'}
           </text>
         </g>
       )}
@@ -171,12 +174,12 @@ export default function CricketField({
           </g>
         )}
         {/* Batter */}
-        <circle cx={cx + 10} cy={strikerY + 8} r="6" fill="#f6f6f6" stroke="#1d3a23" strokeWidth="1.5" />
+        <circle cx={leftHanded ? cx - 10 : cx + 10} cy={strikerY + 8} r="6" fill="#f6f6f6" stroke="#1d3a23" strokeWidth="1.5" />
       </g>
 
       {/* Inactive positions */}
       {showInactive &&
-        POSITIONS.filter((p) => !positions[p.id]?.active).map((p) => (
+        POS.filter((p) => !positions[p.id]?.active).map((p) => (
           <g key={p.id} className="marker" onClick={() => onMarkerClick?.(p.id)} opacity={focusedId === p.id ? 1 : 0.55}>
             <title>{`${p.name} (not selected)`}</title>
             <circle cx={p.x} cy={p.y} r={focusedId === p.id ? 10 : 6} fill="none" stroke="#e8f5ea" strokeWidth="2" strokeDasharray={focusedId === p.id ? '' : '3 3'} />

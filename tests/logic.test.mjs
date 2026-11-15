@@ -2,7 +2,8 @@
 // Run with: npm test
 import { analyseMatch } from '../src/lib/tactics.js';
 import { rainLevel, weatherWarning, locationCandidates, fetchMatchWeather } from '../src/lib/weather.js';
-import { assignInLineup, moveItem, newMatch, defaultPlayers, normaliseData, formatInfo } from '../src/data/model.js';
+import { assignInLineup, moveItem, newMatch, defaultPlayers, normaliseData, formatInfo, teamSheet } from '../src/data/model.js';
+import { POSITIONS, FIELD_TEMPLATES } from '../src/data/positions.js';
 
 let failed = 0;
 const t = (cond, msg) => {
@@ -80,6 +81,34 @@ const m = base();
 m.matchDay.scoring = [{ id: 'x', area: 'midwicket', weight: 3, kind: 'mine' }];
 a = analyseMatch(m);
 t(a.areaSuggestions[0]?.positions.includes('Deep Mid-wicket'), 'mid-wicket observation suggests Deep Mid-wicket');
+
+console.log('Squad-aware advice');
+{
+  const sq = defaultPlayers().map((p, i) => ({ ...p, name: `P${i + 1}`, bowling: i === 0 ? 'Fast' : i === 1 ? 'Off-spin' : '' }));
+  const mm = base({ pitch: { condition: 'Damp', seam: 'Yes' } });
+  const r = analyseMatch(mm, sq);
+  t(r.bowling.squad.pace.join() === 'P1' && r.bowling.squad.spin.join() === 'P2', 'finds pace and spin bowlers in the squad');
+  mm.bowling[0].playerId = sq[1].id;
+  mm.bowling[1].playerId = sq[1].id === sq[2].id ? sq[3].id : sq[2].id;
+  sq[2].bowling = 'Leg-spin';
+  const r2 = analyseMatch(mm, sq);
+  t(r2.bowling.squad.notes.some((n) => n.includes('both spinners')), 'warns when both openers are spinners on a seaming pitch');
+  const r3 = analyseMatch(base({ pitch: { condition: 'Dry', spin: 'Yes' } }), sq.map((p) => ({ ...p, bowling: p.bowling === 'Fast' ? 'Fast' : '' })));
+  t(r3.bowling.squad.notes.some((n) => n.includes('no spinners')), 'notes when spin suits but no spinners are listed');
+}
+
+console.log('Team sheet and templates');
+{
+  const sq = defaultPlayers();
+  const mm = newMatch(sq, { name: 'Round 6', opposition: 'Eastwood CC', format: 'T20' });
+  mm.bowling[0] = { playerId: sq[3].id, overs: '4', notes: '' };
+  mm.fielding.setups[0].positions.wk = { active: true, player: 'Henry' };
+  const text = teamSheet(mm, sq, { POSITIONS });
+  t(text.includes('Round 6 vs Eastwood CC') && text.includes('1. Player 1') && text.includes('Player 4 – 4 overs') && text.includes('Wicketkeeper: Henry'), 'team sheet includes match, batting, bowling and field');
+  t(FIELD_TEMPLATES.every((tp) => tp.positions.length === 10 && tp.positions.includes('wk') && tp.positions.every((id) => POSITIONS.some((p) => p.id === id))), 'every template has 10 valid positions including a keeper');
+  const outside = (id) => FIELD_TEMPLATES.find((x) => x.id === id).positions.filter((pid) => POSITIONS.find((p) => p.id === pid).group === 'outer').length;
+  t(outside('powerplay') === 2 && outside('death') === 5, 'powerplay has 2 and death overs 5 fielders outside the circle');
+}
 
 console.log('Data');
 const n = normaliseData({ players: [{ id: 'p', name: 'X' }], matches: [{ id: 'm1', batting: [] }] });

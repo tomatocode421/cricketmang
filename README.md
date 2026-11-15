@@ -17,7 +17,9 @@ A personal macOS desktop app for organising a cricket team and preparing for mat
 - **Bowling Order**: planned overs, with warnings for the total overs and per-bowler limits (T20 / 40 / 50 / custom), plus bowling strategy advice.
 - **Game Notes**: a notebook for each match, split into ten sections.
 - **Tips and Improvements**: categories and statuses, with search and filters.
-- **Player Management**: the 11-player roster that every other section uses.
+- **Player Management**: the 11-player roster that every other section uses, with each player's role, bowling style and batting hand. Match Day bowling advice uses these to name your actual pace and spin options.
+- **Field templates**: one-tap balanced, new-ball, spin, powerplay, death-overs and defensive fields. A **left-handed batter** switch mirrors the field.
+- **Team sheet**: turns the batting order, bowling plan and field into a message to copy or share with your team.
 - **Match History**: read-only review of every match, editing earlier matches, and starting a new match by copying from a previous one.
 - **Automatic saving** to your Mac, plus **Backup & Restore** to a single file.
 - **Quick navigation**:

@@ -56,6 +56,13 @@ export function BowlingRecommendation({ a, compact }) {
       <div className="plan-item">
         <h4>Recommended bowling balance</h4>
         <p>{b.balance}</p>
+        {b.squad?.notes?.length > 0 && (
+          <ul className="reason-list" style={{ marginTop: 6 }}>
+            {b.squad.notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -76,7 +83,7 @@ export default function Bowling() {
     );
 
   const fmt = formatInfo(m);
-  const a = analyseMatch(m);
+  const a = analyseMatch(m, data.players);
   const setLineup = (fn) =>
     updateMatch(m.id, (mm, draft) => {
       mm.bowling = fn(mm.bowling);
@@ -214,7 +221,7 @@ export default function Bowling() {
                       placeholder="— Select bowler —"
                       options={data.players.map((p) => {
                         const at = m.bowling.findIndex((r) => r.playerId === p.id);
-                        return { value: p.id, label: `${p.name || 'Unnamed player'}${at >= 0 && at !== i ? `  (bowls ${ordinal(at + 1)})` : ''}` };
+                        return { value: p.id, label: `${p.name || 'Unnamed player'}${p.bowling ? ` · ${p.bowling}` : ''}${at >= 0 && at !== i ? `  (bowls ${ordinal(at + 1)})` : ''}` };
                       })}
                     />
                     </div>

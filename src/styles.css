@@ -513,3 +513,31 @@ button.activity-item:last-child { border-bottom: none; }
   .tab-full { display: none; }
   .tab-short { display: inline; }
 }
+
+/* ---------- Roster ---------- */
+.roster-head, .roster-row { display: grid; grid-template-columns: 30px minmax(130px, 1.5fr) minmax(110px, 1fr) minmax(120px, 1.1fr) auto; gap: 10px; align-items: center; }
+.roster-head { padding: 10px 20px 0; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.roster-row .seg button { padding: 5px 9px; }
+.squad-line { display: grid; grid-template-columns: 92px 1fr; gap: 8px; font-size: 13px; }
+.player-style { font-size: 11px; color: var(--text-3); }
+.squad-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+@media (max-width: 820px) {
+  .roster-head { display: none; }
+  .roster-row { grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr); padding: 10px 0; border-bottom: 1px solid #252a2d; }
+  .roster-row .r-name { grid-column: 2 / 4; }
+  .roster-row .r-role { grid-column: 2; }
+  .roster-row .r-bowl { grid-column: 3; }
+  .roster-row .r-bats { grid-column: 2 / 4; justify-self: start; }
+}
+.team-sheet { min-height: 360px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; line-height: 1.6; }
+
+/* ---------- Getting started ---------- */
+.gs-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 14px 20px 18px; }
+.gs-step { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.gs-step:hover { border-color: var(--green-border); }
+.gs-step.done { color: var(--text-3); }
+.gs-step.done span:last-child { text-decoration: line-through; }
+.gs-num { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; border: 1px solid var(--border-strong); color: var(--green-soft); }
+.gs-step.done .gs-num { background: var(--green); border-color: var(--green); color: #fff; }
+@media (max-width: 1280px) { .gs-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 820px) { .gs-steps { grid-template-columns: minmax(0, 1fr); padding: 12px 14px 14px; } }
