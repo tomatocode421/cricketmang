@@ -100,13 +100,6 @@ export default function Live() {
                 </button>
               </div>
             </section>
-            <div className="callout info">
-              <AlertTriangle size={16} />
-              <div>
-                <strong>About Play-Cricket and live scores</strong>
-                Play-Cricket&apos;s official access is for results after play and does not provide a live ball-by-ball feed to other apps. Scoring here gives you live analysis; afterwards you can import the official scorecard in Stats &amp; Play-Cricket.
-              </div>
-            </div>
           </div>
         </div>
       </>

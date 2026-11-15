@@ -97,7 +97,7 @@ srv.listen(0, async () => {
   check((await page.locator('.sug', { hasText: 'bowling change' }).count()) === 0, 'dismissed suggestion leaves the list');
   await page.click('[aria-label="Undo last ball"]').catch(() => {});
 
-  await nav('Stats & Play-Cricket');
+  await nav('Stats');
   await page.click('.md-tab:has-text("Import CSV")');
   check((await page.locator('text=Connect Play-Cricket from the Mac app').count()) === 0, 'tab switch works');
   await page.fill('[aria-label="CSV scorecard"]', 'section,name,runs,balls,fours,sixes,how_out,overs,maidens,wickets\nour_batting,Noah Singh,51,40,6,1,c X b Y,,,\nour_bowling,Jack Wilson,20,,,,,4,1,3');
@@ -105,8 +105,6 @@ srv.listen(0, async () => {
   await page.click('.md-tab:has-text("Season stats")');
   const row = await page.locator('tr', { hasText: 'Noah Singh' }).innerText();
   check(/\b51\b/.test(row), 'imported runs appear in season stats');
-  await page.click('.md-tab:has-text("Play-Cricket")');
-  check((await page.locator('text=Connect Play-Cricket from the Mac app').count()) === 1, 'Play-Cricket explains it connects from the Mac app');
   check(errors.length === 0, `no page errors ${errors.join(' | ')}`);
   await b.close();
   srv.close();

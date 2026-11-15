@@ -29,7 +29,7 @@ export const NAV_ITEMS = [
   { id: 'tips', label: 'Tips and Improvements', icon: Lightbulb },
   { id: 'players', label: 'Player Management', icon: Users },
   { id: 'history', label: 'Match History', icon: History },
-  { id: 'stats', label: 'Stats & Play-Cricket', icon: BarChart3 },
+  { id: 'stats', label: 'Stats', icon: BarChart3 },
 ];
 
 function BallLogo() {

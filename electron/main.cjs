@@ -104,8 +104,6 @@ const ALLOWED_HOSTS = new Set([
   'geocoding-api.open-meteo.com',
   'archive-api.open-meteo.com',
   'en.wikipedia.org',
-  'play-cricket.com',
-  'www.play-cricket.com',
 ]);
 
 ipcMain.handle('net:getJson', async (_e, url) => {

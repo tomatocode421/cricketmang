@@ -37,7 +37,7 @@ const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if 
       if (over.length) { problems++; console.log(`${dev} | ${where} | ${over.join(' ; ')}`); }
       if (OUT) await p.screenshot({ path: `${OUT}/${dev.replace(' ', '')}-${where.replace(/[^a-z0-9]+/gi, '_')}.png` });
     };
-    const sections = ['Dashboard', 'Current Match', 'Match Day', 'Live Match', 'Stats & Play-Cricket', 'Fielding Positions', 'Batting Order', 'Bowling Order', 'Game Notes', 'Tips and Improvements', 'Player Management', 'Match History'];
+    const sections = ['Dashboard', 'Current Match', 'Match Day', 'Live Match', 'Stats', 'Fielding Positions', 'Batting Order', 'Bowling Order', 'Game Notes', 'Tips and Improvements', 'Player Management', 'Match History'];
     for (const s of sections) {
       await p.locator('.tabbar button', { hasText: 'More' }).tap();
       await p.locator('.sheet-grid button', { hasText: s }).tap();

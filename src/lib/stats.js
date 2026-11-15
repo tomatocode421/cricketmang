@@ -1,4 +1,4 @@
-// Season statistics for the squad, built from imported scorecards (Play-Cricket or CSV)
+// Season statistics for the squad, built from imported scorecards
 // and innings scored live in the app. Each scorecard row is matched to a squad player by
 // their Play-Cricket id or by name.
 import { computeInnings, nameFor, oversText } from './live.js';
