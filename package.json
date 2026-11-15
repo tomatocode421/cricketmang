@@ -1,0 +1,64 @@
+{
+  "name": "cricket-team-manager",
+  "productName": "Cricket Team Manager",
+  "version": "1.0.0",
+  "description": "Personal cricket team management and match preparation app for macOS",
+  "main": "electron/main.cjs",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "vite build && electron .",
+    "electron": "electron .",
+    "dist": "vite build && electron-builder --mac",
+    "test": "node tests/logic.test.mjs",
+    "e2e": "vite build && node tests/e2e.cjs",
+    "e2e:mobile": "vite build && node tests/mobile.cjs"
+  },
+  "build": {
+    "appId": "com.personal.crickettms",
+    "productName": "Cricket Team Manager",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "mac": {
+      "category": "public.app-category.sports",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false
+    }
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "vite": "^5.4.11"
+  },
+  "dependencies": {
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "type": "module",
+  "author": "Cricket Team Manager"
+}

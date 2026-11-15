@@ -1,0 +1,15 @@
+{
+  "name": "Cricket Team Manager",
+  "short_name": "Cricket",
+  "description": "Organise your cricket team and prepare for match day.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1011",
+  "theme_color": "#0e1011",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
