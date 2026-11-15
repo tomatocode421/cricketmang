@@ -452,7 +452,7 @@ button.activity-item:last-child { border-bottom: none; }
   .field-wrap { display: block; }
   .field-svg-wrap { min-height: 0; aspect-ratio: 1000 / 1100; width: 100%; }
   .pos-list { width: 100%; border-right: none; border-top: 1px solid var(--border); background: transparent; }
-  .pos-list-head { position: sticky; top: 0; z-index: 5; background: var(--bg); }
+  .pos-list-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 5; background: var(--bg); }
   .pos-scroll { overflow: visible; padding: 4px 8px 12px; }
   .pos-cols, .pos-row { grid-template-columns: 28px 118px minmax(0, 1fr) !important; }
   .pos-row { padding: 6px 6px; }
@@ -541,3 +541,25 @@ button.activity-item:last-child { border-bottom: none; }
 .gs-step.done .gs-num { background: var(--green); border-color: var(--green); color: #fff; }
 @media (max-width: 1280px) { .gs-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 820px) { .gs-steps { grid-template-columns: minmax(0, 1fr); padding: 12px 14px 14px; } }
+
+/* ---------- Older iPhones (iOS 12) ---------- */
+/* No aspect-ratio before Safari 15: keep the field's shape with the padding trick. */
+@supports not (aspect-ratio: 1) {
+  @media (max-width: 820px) {
+    .field-svg-wrap, .review-field { height: 0 !important; padding-bottom: 110%; aspect-ratio: auto; }
+  }
+}
+/* No flex gap before Safari 14.1: space items with margins instead. */
+.no-flex-gap .row > * + *, .no-flex-gap .topbar-right > * + *, .no-flex-gap .field-toolbar > * + *,
+.no-flex-gap .setup-actions > * + *, .no-flex-gap .btn > * + *, .no-flex-gap .tag > * + *,
+.no-flex-gap .nav-item > * + *, .no-flex-gap .cmd-item > * + *, .no-flex-gap .md-tab > * + * { margin-left: 8px; }
+.no-flex-gap .stack > * + * { margin-top: 16px; }
+.no-flex-gap .stack-sm > * + * { margin-top: 8px; }
+.no-flex-gap .nav > * + * { margin-top: 2px; }
+.no-flex-gap .row-wrap > *, .no-flex-gap .md-tabs > *, .no-flex-gap .seg > * { margin-bottom: 6px; }
+.no-flex-gap .md-tabs > * + * { margin-left: 6px; }
+.no-flex-gap .tabbar button > * + *, .no-flex-gap .sheet-grid button > * + * { margin-top: 4px; margin-left: 0; }
+/* Touch screens: no grey/blue flash or lingering outline after a tap; keyboard focus still shows. */
+* { -webkit-tap-highlight-color: transparent; }
+button:focus:not(:focus-visible) { outline: none; }
+button:focus-visible, .select:focus-visible { outline: 2px solid var(--green-strong); outline-offset: 2px; }
